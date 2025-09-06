@@ -101,6 +101,10 @@
                 <button id="clear-button" class="tool-btn" disabled aria-label="Limpiar Todo" aria-disabled="true" title="Limpiar Todo">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 16h4v2h-4v-2zm0-8h7v2h-7V8zm0 4h6v2h-6v-2zM3 18c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V8H3v10zM14 5h-3l-1-1H6L5 5H2v2h12V5z"/></svg>
                 </button>
+                <div class="separator" role="separator"></div>
+                <button id="help-button" class="tool-btn" aria-label="Ayuda y Tutorial" title="Ayuda y Tutorial">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-6h2v6zm0-8h-2V7h2v4z"/></svg>
+                </button>
             </aside>
 
             <!-- Espacio de Trabajo Central (sin cambios) -->
@@ -245,6 +249,53 @@
         <p>Procesando...</p>
     </div>
 
+    <!-- Modal del Tutorial -->
+    <div id="tutorial-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Tutorial: Edición Manual de Frames</h2>
+                <button id="close-tutorial-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="tutorial-steps">
+                    <div class="tutorial-step" data-step="1">
+                        <h3>1. Crear Frame</h3>
+                        <img src="tutorial/crear-frame.svg" alt="Crear Frame" class="tutorial-svg">
+                        <p>Haz clic y arrastra en un área vacía para crear un nuevo frame.</p>
+                    </div>
+                    <div class="tutorial-step" data-step="2">
+                        <h3>2. Seleccionar/Mover</h3>
+                        <img src="tutorial/seleccionar-mover.svg" alt="Seleccionar/Mover" class="tutorial-svg">
+                        <p>Haz clic y arrastra un frame para seleccionarlo y moverlo.</p>
+                    </div>
+                    <div class="tutorial-step" data-step="3">
+                        <h3>3. Redimensionar</h3>
+                        <img src="tutorial/redimensionar.svg" alt="Redimensionar" class="tutorial-svg">
+                        <p>Arrastra los puntos de control para redimensionar el frame.</p>
+                    </div>
+                    <div class="tutorial-step" data-step="4">
+                        <h3>4. Eliminar Frame</h3>
+                        <img src="tutorial/eliminar-frame.svg" alt="Eliminar Frame" class="tutorial-svg">
+                        <p>Selecciona un frame y presiona 'Supr' para eliminarlo.</p>
+                    </div>
+                    <div class="tutorial-step" data-step="5">
+                        <h3>5. Añadir/Quitar del Clip</h3>
+                        <img src="tutorial/anadir-quitar-clip.svg" alt="Añadir/Quitar del Clip" class="tutorial-svg">
+                        <p>Doble clic en un sub-frame para añadirlo o quitarlo del clip.</p>
+                    </div>
+                </div>
+                <div class="tutorial-navigation">
+                    <button id="prev-step" disabled>Anterior</button>
+                    <span id="step-indicator">1 / 5</span>
+                    <button id="next-step">Siguiente</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="dont-show-again">No volver a ver más</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.querySelector('.collapse-panels-btn').addEventListener('click', function() {
             document.querySelector('.photoshop-ui').classList.toggle('panels-collapsed');
@@ -252,6 +303,12 @@
         });
     </script>
     <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/tutorial.js"></script>
 
 </body>
 </html>
+        < s c r i p t   s r c = \ 
+ 
+ j s / t u t o r i a l . j s \ > < / s c r i p t > 
+ 
+ 
