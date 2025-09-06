@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite Sheet Suite v4.4 "Dulce" (Functional Photoshop UI)</title>
+    <!-- Librerías Externas (sin cambios) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    
+    <!-- Nuevo Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Metadatos (sin cambios) -->
+    <meta name="description" content="Una suite de herramientas web profesional para cortar, previsualizar y exportar animaciones desde hojas de sprites (sprite sheets).">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%231a1b26'/><rect x='2' y='2' width='5' height='5' fill='%2324283b'/><rect x='9' y='2' width='5' height='5' fill='%2324283b'/><rect x='2' y='9' width='5' height='5' fill='%2324283b'/><rect x='9' y='9' width='5' height='5' fill='%237aa2f7'/></svg>">
+</head>
+<body>
+
+    <!-- Pantalla de bienvenida (sin cambios) -->
+    <div id="welcome-screen">
+        <div id="drop-zone">
+            <h2>Sprite Sheet Suite v4.3</h2>
+            <p>Arrastra y suelta tu imagen aquí o selecciónala</p>
+            <label for="image-loader" id="image-loader-label">Seleccionar Archivo</label>
+            <input type="file" id="image-loader" accept="image/*">
+        </div>
+    </div>
+    
+    <!-- Contenedor principal de la aplicación con el nuevo diseño -->
+    <div class="photoshop-ui app-container" style="visibility: hidden;">
+        
+        <!-- Barra de Opciones Superior -->
+        <header class="options-bar">
+            <div class="app-title">
+                <h1>Sprite Sheet Suite <span class="version">v4.3</span></h1>
+                <p id="image-dimensions"></p>
+            </div>
+            <div class="main-actions">
+                <div class="zoom-controls">
+                    <button id="zoom-out-button" title="Alejar (Ctrl + -)">-</button>
+                    <span id="zoom-display">100%</span>
+                    <button id="zoom-in-button" title="Acercar (Ctrl + +)">+</button>
+                    <button id="zoom-fit-button" title="Ajustar a pantalla">Fit</button>
+                </div>
+                <button id="change-image-button">Cambiar Imagen</button>
+                <button id="fullscreen-button" class="icon-btn" title="Pantalla Completa (M)">
+                    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+
+            <!-- Barra de Herramientas Izquierda -->
+            <aside class="left-toolbar">
+                <button id="undo-button" class="tool-btn" disabled title="Deshacer (Ctrl+Z)">
+                    <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.38 11.23 17.29 8 12.5 8z"/></svg>
+                </button>
+                <button id="redo-button" class="tool-btn" disabled title="Rehacer (Ctrl+Y)">
+                    <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.79 0-8.88 3.23-10.13 7.5l-2.37-.78C.62 10.23 4.71 6 9.5 6c1.98 0 3.86.63 5.38 1.75L18 4v9h-9l3.4-3.4z"/></svg>
+                </button>
+                <div class="separator"></div>
+                <button id="select-tool-button" class="tool-btn active" title="Seleccionar/Mover (V)">
+                    <svg viewBox="0 0 24 24"><path d="M13.64,21.97C13.14,22.21 12.54,22 12.31,21.5L10.13,16.76L7.62,18.78C7.45,18.92 7.24,19 7,19A1,1 0 0,1 6,18V3A1,1 0 0,1 7,2C7.24,2 7.45,2.08 7.62,2.22L16.22,8.43L19.5,7.5A1,1 0 0,1 20.5,8.5L13.64,21.97Z"/></svg>
+                </button>
+                <button id="create-frame-tool-button" class="tool-btn" title="Crear Frame (C)">
+                     <svg viewBox="0 0 24 24"><path d="M5 3H3v2h2V3m0 4H3v2h2V7m0 4H3v2h2v-2m0 4H3v2h2v-2m4-12H7v2h2V3m0 16H7v2h2v-2m4-16h-2v2h2V3m0 16h-2v2h2v-2m4-16h-2v2h2V3m0 4h-2v2h2V7m0 8h-2v2h2v-2m0-4h-2v2h2v-2m4 8h-2v2h2v-2m0-12h-2v2h2V3m2 4h2V5h-2V7m0 4h2V9h-2v2m0 4h2v-2h-2v2m0 4h2v-2h-2v2Z"/></svg>
+                </button>
+                
+                <!-- ===== CAMBIO 1: BOTÓN DE BORRADOR DESCOMENTADO ===== -->
+                <button id="eraser-tool-button" class="tool-btn" title="Borrador de Frames (E)">
+                    <svg viewBox="0 0 24 24"><path d="M16.24,3.56L20.44,7.76L7.76,20.44L3.56,16.24L16.24,3.56M22,2L18,6L6,18L2,22L2.76,19.24L13.76,8.24L11,5.5L12.5,4C13.09,3.41 14.04,3.41 14.62,4L16,5.38L18.62,2.76C19.21,2.18 20.16,2.18 20.74,2.76L21.24,3.26C21.82,3.84 21.82,4.79 21.24,5.38L18.5,8L16,10.5L19.24,13.76L22,11V6C22,4.9 21.58,3.95 20.88,3.24L20.74,3.12C20.16,2.54 19.21,2.54 18.62,3.12L17,4.74L16.74,5L15,3.26L15.38,3C15.96,2.41 16.91,2.41 17.5,3L18.62,4.12L19.88,2.88C20.46,2.29 20.46,1.34 19.88,0.76L19.24,0.12C18.66,-0.46 17.71,-0.46 17.12,0.12L14.5,2.74L14,2.24C13.41,1.66 12.46,1.66 11.88,2.24L10.5,3.62L8.24,1.36L11,1.24V2H22V2Z" /></svg>
+                </button>
+                
+                <button id="auto-detect-tool-button" class="tool-btn" title="Detección Automática de Sprites">
+                    <svg viewBox="0 0 24 24"><path d="M14.5,2C15.3,2 16,2.7 16,3.5V6.41L18.59,4L20,5.41L17.41,8H20.5C21.3,8 22,8.7 22,9.5C22,10.05 21.7,10.5 21.25,10.75L18.5,12L21.25,13.25C21.7,13.5 22,13.95 22,14.5C22,15.3 21.3,16 20.5,16H17.41L20,18.59L18.59,20L16,17.41V20.5C16,21.3 15.3,22 14.5,22C13.95,22 13.5,21.7 13.25,21.25L12,18.5L10.75,21.25C10.5,21.7 10.05,22 9.5,22C8.7,22 8,21.3 8,20.5V17.41L5.41,20L4,18.59L6.59,16H3.5C2.7,16 2,15.3 2,14.5C2,13.95 2.3,13.5 2.75,13.25L5.5,12L2.75,10.75C2.3,10.5 2,10.05 2,9.5C2,8.7 2.7,8 3.5,8H6.59L4,5.41L5.41,4L8,6.59V3.5C8,2.7 8.7,2 9.5,2C10.05,2 10.5,2.3 10.75,2.75L12,5.5L13.25,2.75C13.5,2.3 13.95,2 14.5,2Z" /></svg>
+                </button>
+                <div class="separator"></div>
+                <button id="lock-frames-button" class="tool-btn" title="Bloquear/Desbloquear Frame (L)">🔓</button>
+                <button id="clear-button" class="tool-btn" disabled title="Limpiar Todo">
+                    <svg viewBox="0 0 24 24"><path d="M15 16h4v2h-4v-2zm0-8h7v2h-7V8zm0 4h6v2h-6v-2zM3 18c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V8H3v10zM14 5h-3l-1-1H6L5 5H2v2h12V5z"/></svg>
+                </button>
+            </aside>
+
+            <!-- Espacio de Trabajo Central (sin cambios) -->
+            <main class="workspace">
+                <div class="document-window">
+                    <div class="document-tab">
+                        <span id="document-title">Sin título-1 @ 100%</span>
+                        <button class="close-tab-btn">×</button>
+                    </div>
+                    <div class="editor-area-container">
+                        <div id="editor-area" class="editor-area">
+                            <div class="ruler-corner"></div>
+                            <canvas id="ruler-top"></canvas>
+                            <canvas id="ruler-left"></canvas>
+                            <div id="image-container">
+                                <img id="image-display" src="" alt="Sprite sheet">
+                                <canvas id="measurement-canvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Paneles de la Derecha (sin cambios) -->
+            <aside class="right-panel-stack">
+                <!-- ... resto del panel derecho sin cambios ... -->
+                <div class="panel-header-icons">
+                     <button class="collapse-panels-btn" title="Contraer paneles">»</button>
+                </div>
+                <div class="panel-content">
+                    
+                    <details class="panel" open>
+                        <summary>Previsualización</summary>
+                        <div>
+                            <canvas id="preview-canvas" width="150" height="150"></canvas>
+                            <div class="input-group center">
+                                <button id="first-frame-button" class="icon-btn" disabled>⏮️</button>
+                                <button id="play-pause-button" class="icon-btn" disabled>▶️</button>
+                                <button id="last-frame-button" class="icon-btn" disabled>⏭️</button>
+                            </div>
+                            <div class="input-group center">
+                                <label for="fps-slider">FPS: <span id="fps-value">12</span></label>
+                                <input type="range" id="fps-slider" min="1" max="60" value="12" disabled>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="panel" open>
+                        <summary>Clips y Frames</summary>
+                        <div>
+                            <h3>Clips de Animación</h3>
+                            <div class="input-group">
+                                <select id="clips-select"></select>
+                                <button id="new-clip-button" class="icon-btn" title="Nuevo Clip"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+                                <button id="rename-clip-button" class="icon-btn" title="Renombrar"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+                                <button id="delete-clip-button" class="icon-btn" title="Eliminar"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+                            </div>
+                            <h3>Frames del Clip</h3>
+                            <div class="input-group">
+                                <button id="select-all-frames" class="small-action">Seleccionar Todos</button>
+                                <button id="deselect-all-frames" class="small-action">Deseleccionar Todos</button>
+                            </div>
+                            <ul id="frames-list" class="styled-list"></ul>
+                        </div>
+                    </details>
+
+                    <details class="panel" open>
+                        <summary>Generación y Ayuda</summary>
+                        <div>
+                            <details class="sub-panel">
+                                <summary>Generación de Parrilla</summary>
+                                <p class="help-text">Borrará los frames existentes.</p>
+                                <div class="input-group"><label>Filas:</label><input type="number" id="rows-input" value="2" min="1"><label>Cols:</label><input type="number" id="cols-input" value="5" min="1"></div>
+                                <button id="generate-grid-button" disabled>Generar por Parrilla</button>
+                                <div class="input-group"><label>Ancho:</label><input type="number" id="cell-w-input" value="64" min="1"><label>Alto:</label><input type="number" id="cell-h-input" value="64" min="1"></div>
+                                <button id="generate-by-size-button" disabled>Generar por Tamaño</button>
+                            </details>
+
+                            <details class="sub-panel">
+                                <summary>Detección Automática</summary>
+                                <p class="help-text">Intenta encontrar los sprites basándose en el color de fondo (pixel superior izquierdo). Borrará los frames existentes.</p>
+                                <div class="input-group">
+                                    <label for="auto-detect-tolerance">Tolerancia:</label>
+                                    <input type="number" id="auto-detect-tolerance" value="20" min="0" max="255" title="Qué tan diferente debe ser un color del fondo para ser considerado parte de un sprite (0 = solo colores exactos).">
+                                </div>
+                                <button id="auto-detect-button" disabled>Detectar Sprites (Auto)</button>
+                            </details>
+                            
+                            <details class="sub-panel">
+                                <summary>Edición Manual de Frames</summary>
+                                <p class="help-text">
+                                    - <b>Crear Frame:</b> Haz clic y arrastra en un área vacía.<br>
+                                    - <b>Seleccionar/Mover:</b> Haz clic y arrastra un frame.<br>
+                                    - <b>Redimensionar:</b> Arrastra los puntos de control.<br>
+                                    - <b>Eliminar Frame:</b> Selecciona y presiona 'Supr'.<br>
+                                    - <b>Añadir/Quitar del Clip:</b> Doble clic en un sub-frame.
+                                </p>
+                            </details>
+                             <details class="sub-panel">
+                                <summary>Divisiones Internas (Slicing)</summary>
+                                <p class="help-text">
+                                    Un frame se convierte en "Grupo" para poder dividirlo.<br>
+                                    - <b>Div. Horizontal:</b> Alt + Clic.<br>
+                                    - <b>Div. Vertical:</b> Ctrl + Clic.<br>
+                                    - <b>Mover Línea:</b> Arrastra una línea para ajustarla.<br>
+                                    - <b>Eliminar Línea:</b> Mantén pulsada una línea y presiona 'Supr' o 'Retroceso'.
+                                </p>
+                            </details>
+                        </div>
+                    </details>
+
+                    <details class="panel">
+                        <summary>Historial de Proyectos</summary>
+                        <div><ul id="project-history-list" class="styled-list"></ul></div>
+                    </details>
+
+                    <details class="panel" id="export-panel">
+                        <summary>Exportar</summary>
+                        <div class="export-options">
+                            <details class="sub-panel"><summary>Frames Individuales</summary><button id="export-zip-button" disabled>Descargar Frames (ZIP)</button></details>
+                            <details class="sub-panel"><summary>Clip a GIF</summary><div class="input-group"><label>Tamaño Máx:</label><input type="number" id="max-gif-size" value="128" min="16"></div><button id="export-gif-button" disabled>Descargar GIF</button></details>
+                            <details class="sub-panel" id="code-export-details"><summary>A Código</summary>
+                                <div class="input-group">
+                                    <label for="export-scale-input">Escala:</label>
+                                    <input type="number" id="export-scale-input" value="2" min="0.1" step="0.1">
+                                </div>
+                                <button id="export-code-button" disabled>Generar HTML/CSS</button>
+                                <div id="code-preview-container"><div class="code-editors"><div class="code-editor"><div class="code-editor-header">HTML <button class="copy-button" data-target="html-code-output">Copiar</button></div><div class="code-editor-body"><div class="line-numbers" id="html-line-numbers"></div><pre><code id="html-code-output"></code></pre></div></div><div class="code-editor"><div class="code-editor-header">CSS <button class="copy-button" data-target="css-code-output">Copiar</button></div><div class="code-editor-body"><div class="line-numbers" id="css-line-numbers"></div><pre><code id="css-code-output"></code></pre></div></div></div><div class="live-preview-container"><iframe id="live-preview-iframe" title="Live Preview"></iframe></div></div></details>
+                            <details class="sub-panel"><summary>Datos a JSON</summary><div class="input-group"><label>Formato:</label><select id="json-format-select"><option value="default">Por Defecto</option><option value="phaser3">Phaser 3</option><option value="godot">Godot</option></select></div><div class="code-editor"><div class="code-editor-header">JSON <button class="copy-button" data-target="json-output">Copiar</button></div><div class="code-editor-body"><div class="line-numbers" id="json-line-numbers"></div><pre><code id="json-output"></code></pre></div></div></details>
+                        </div>
+                    </details>
+                </div>
+            </aside>
+        </div>
+    </div>
+    
+    <div id="toast"></div>
+
+    <!-- ===== CAMBIO 2: NUEVO INDICADOR DE CARGA AÑADIDO ===== -->
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p>Procesando...</p>
+    </div>
+
+    <script>
+        document.querySelector('.collapse-panels-btn').addEventListener('click', function() {
+            document.querySelector('.photoshop-ui').classList.toggle('panels-collapsed');
+            this.textContent = this.textContent === '»' ? '«' : '»';
+        });
+    </script>
+    <script type="module" src="js/main.js"></script>
+
+</body>
+</html>
