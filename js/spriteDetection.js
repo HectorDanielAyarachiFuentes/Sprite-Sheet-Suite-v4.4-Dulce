@@ -27,7 +27,9 @@ const DEFAULT_CONFIG = {
     enableCache: true,
     chunkSize: 1024 * 1024, // 1MB chunks
     useWebGL: false,
-    forceRecalculation: false
+    forceRecalculation: false,
+    enableNoiseReduction: true,
+    noiseThreshold: 2
 };
 
 // --- Sistema de Cache Inteligente ---
@@ -180,6 +182,117 @@ function createDetectionWorker() {
     return detectionWorker;
 }
 
+/**
+ * Aplica reducción de ruido eliminando píxeles aislados pequeños
+ * @param {Uint8ClampedArray} data - Datos de imagen
+ * @param {number} w - Ancho
+ * @param {number} h - Alto
+ * @param {Array} bgColor - Color de fondo
+ * @param {Object} config - Configuración
+ */
+function applyNoiseReduction(data, w, h, bgColor, config) {
+    if (!config.enableNoiseReduction) return;
+
+    const threshold = config.noiseThreshold || 2;
+    const visited = new Uint8Array(w * h);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = y * w + x;
+            if (visited[i] || isBackgroundColor(data, i * 4, bgColor, config.tolerance)) continue;
+
+            // Contar píxeles conectados
+            const connectedPixels = countConnectedPixels(x, y, w, h, data, bgColor, config.tolerance);
+
+            // Si es un grupo pequeño de píxeles aislados, marcar como ruido
+            if (connectedPixels <= threshold) {
+                // Marcar todos los píxeles del grupo como visitados y convertir a fondo
+                markNoisePixels(x, y, w, h, data, visited, bgColor, config.tolerance);
+            }
+        }
+    }
+}
+
+/**
+ * Cuenta píxeles conectados desde una posición inicial
+ * @param {number} startX
+ * @param {number} startY
+ * @param {number} w
+ * @param {number} h
+ * @param {Uint8ClampedArray} data
+ * @param {Array} bgColor
+ * @param {number} tolerance
+ * @returns {number}
+ */
+function countConnectedPixels(startX, startY, w, h, data, bgColor, tolerance) {
+    const visited = new Uint8Array(w * h);
+    const queue = [[startX, startY]];
+    visited[startY * w + startX] = 1;
+    let count = 1;
+
+    const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // 4-way connectivity
+
+    while (queue.length > 0) {
+        const [cx, cy] = queue.shift();
+
+        for (const [dx, dy] of neighbors) {
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                const ni = ny * w + nx;
+                if (!visited[ni] && !isBackgroundColor(data, ni * 4, bgColor, tolerance)) {
+                    visited[ni] = 1;
+                    queue.push([nx, ny]);
+                    count++;
+                }
+            }
+        }
+    }
+
+    return count;
+}
+
+/**
+ * Marca píxeles de ruido como fondo
+ * @param {number} startX
+ * @param {number} startY
+ * @param {number} w
+ * @param {number} h
+ * @param {Uint8ClampedArray} data
+ * @param {Uint8Array} visited
+ * @param {Array} bgColor
+ * @param {number} tolerance
+ */
+function markNoisePixels(startX, startY, w, h, data, visited, bgColor, tolerance) {
+    const queue = [[startX, startY]];
+    visited[startY * w + startX] = 1;
+
+    const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // 4-way connectivity
+
+    while (queue.length > 0) {
+        const [cx, cy] = queue.shift();
+        const index = (cy * w + cx) * 4;
+
+        // Convertir píxel a color de fondo
+        data[index] = bgColor[0];     // R
+        data[index + 1] = bgColor[1]; // G
+        data[index + 2] = bgColor[2]; // B
+        data[index + 3] = bgColor[3]; // A
+
+        for (const [dx, dy] of neighbors) {
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                const ni = ny * w + nx;
+                if (!visited[ni] && !isBackgroundColor(data, ni * 4, bgColor, tolerance)) {
+                    visited[ni] = 1;
+                    queue.push([nx, ny]);
+                }
+            }
+        }
+    }
+}
+
 // --- Sistema de Plugins para Algoritmos ---
 const detectionAlgorithms = {
     floodFill: floodFillAlgorithm,
@@ -217,6 +330,12 @@ function floodFillAlgorithm(imageElement, config) {
             // Detectar color de fondo
             const bgColor = detectBackgroundColor(data, w, h);
             if (finalConfig.enableLogging) console.log('Color de fondo detectado:', bgColor);
+
+            // Aplicar reducción de ruido si está habilitada
+            if (finalConfig.enableNoiseReduction) {
+                applyNoiseReduction(data, w, h, bgColor, finalConfig);
+                if (finalConfig.enableLogging) console.log('Reducción de ruido aplicada');
+            }
 
             const newFrames = [];
             let processedPixels = 0;
@@ -455,27 +574,54 @@ function validateInputs(imageElement, config) {
 }
 
 /**
- * Detecta el color de fondo basado en las esquinas de la imagen
+ * Detecta el color de fondo basado en el borde completo de la imagen
  * @param {Uint8ClampedArray} data - Datos de imagen
  * @param {number} w - Ancho
  * @param {number} h - Alto
  * @returns {Array} Color RGBA del fondo
  */
 function detectBackgroundColor(data, w, h) {
-    const corners = [
-        [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]
-    ];
+    const borderPixels = [];
 
-    const colors = corners.map(([x, y]) => {
-        const i = (y * w + x) * 4;
-        return [data[i], data[i + 1], data[i + 2], data[i + 3]];
-    });
+    // Muestrear borde superior e inferior
+    for (let x = 0; x < w; x += Math.max(1, Math.floor(w / 50))) { // Muestrear cada 50 píxeles o menos
+        // Superior
+        const topIndex = (0 * w + x) * 4;
+        borderPixels.push([data[topIndex], data[topIndex + 1], data[topIndex + 2], data[topIndex + 3]]);
+        // Inferior
+        const bottomIndex = ((h - 1) * w + x) * 4;
+        borderPixels.push([data[bottomIndex], data[bottomIndex + 1], data[bottomIndex + 2], data[bottomIndex + 3]]);
+    }
 
-    // Contar frecuencia de colores
+    // Muestrear borde izquierdo y derecho (excluyendo esquinas ya muestreadas)
+    for (let y = 1; y < h - 1; y += Math.max(1, Math.floor(h / 50))) {
+        // Izquierdo
+        const leftIndex = (y * w + 0) * 4;
+        borderPixels.push([data[leftIndex], data[leftIndex + 1], data[leftIndex + 2], data[leftIndex + 3]]);
+        // Derecho
+        const rightIndex = (y * w + (w - 1)) * 4;
+        borderPixels.push([data[rightIndex], data[rightIndex + 1], data[rightIndex + 2], data[rightIndex + 3]]);
+    }
+
+    // Contar frecuencia de colores con tolerancia
     const colorCounts = {};
-    colors.forEach(color => {
-        const key = color.join(',');
-        colorCounts[key] = (colorCounts[key] || 0) + 1;
+    const tolerance = 5; // Tolerancia para agrupar colores similares
+
+    borderPixels.forEach(color => {
+        // Buscar colores similares ya contados
+        let found = false;
+        for (const key in colorCounts) {
+            const existingColor = key.split(',').map(Number);
+            if (colorsSimilar(color, existingColor, tolerance)) {
+                colorCounts[key]++;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            const key = color.join(',');
+            colorCounts[key] = 1;
+        }
     });
 
     // Retornar el color más común
@@ -484,6 +630,22 @@ function detectBackgroundColor(data, w, h) {
     );
 
     return mostCommonKey.split(',').map(Number);
+}
+
+/**
+ * Verifica si dos colores son similares dentro de una tolerancia
+ * @param {Array} color1
+ * @param {Array} color2
+ * @param {number} tolerance
+ * @returns {boolean}
+ */
+function colorsSimilar(color1, color2, tolerance) {
+    for (let i = 0; i < 4; i++) {
+        if (Math.abs(color1[i] - color2[i]) > tolerance) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
