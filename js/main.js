@@ -11,6 +11,7 @@ import { AnimationManager } from './7_animationManager.js';
 import { ExportManager } from './8_exportManager.js';
 import { SessionManager } from './9_sessionManager.js';
 import { detectSpritesFromImage } from './spriteDetection.js';
+import { openTutorial } from './tutorial.js';
 
 // --- Zoom Manager (Un pequeño módulo dentro de main) ---
 const ZoomManager = {
@@ -92,6 +93,11 @@ export const App = {
                 this.isReloadingFromStorage = false;
             }
             UIManager.setControlsEnabled(true);
+
+            // Mostrar tutorial después de cargar la imagen, si no está deshabilitado
+            if (!localStorage.getItem('hideTutorial')) {
+                openTutorial();
+            }
         };
         
         DOM.projectHistoryList.addEventListener('click', (e) => {
