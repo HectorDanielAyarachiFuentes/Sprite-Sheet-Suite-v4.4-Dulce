@@ -313,7 +313,7 @@ export const App = {
         setTimeout(async () => {
             try {
                 const tolerance = parseInt(DOM.autoDetectToleranceInput.value, 10);
-                const newFrames = await detectSpritesFromImage(DOM.imageDisplay, tolerance);
+                const newFrames = await detectSpritesFromImage(DOM.imageDisplay, { tolerance });
                 if (newFrames.length > 0) {
                     AppState.frames = newFrames; AppState.clips = []; AppState.activeClipId = null; AppState.selectedFrameId = null;
                     UIManager.showToast(`¡Detección completada! Se encontraron ${newFrames.length} sprites.`, 'success');
