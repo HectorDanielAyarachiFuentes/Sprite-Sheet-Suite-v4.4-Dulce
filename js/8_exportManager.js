@@ -104,6 +104,10 @@ ${keyframesSteps}
             UIManager.showLoader('Generando ZIP de frames...');
 
             try {
+                // Comprobación de seguridad para JSZip
+                if (typeof JSZip === 'undefined') {
+                    throw new Error('La librería JSZip no está cargada. Revisa el script en index.html.');
+                }
                 const zip = new JSZip();
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
@@ -139,11 +143,21 @@ ${keyframesSteps}
             }
             UIManager.showLoader('Generando GIF...');
 
+            // Comprobación de seguridad para la librería GIF
+            if (typeof GIF === 'undefined') {
+                UIManager.showToast('La librería GIF no se cargó correctamente.', 'danger');
+                console.error("GIF library is not defined. Check the script tag in index.html and internet connection.");
+                UIManager.hideLoader();
+                return;
+            }
+
             try {
                 const gif = new GIF({
                     workers: 2,
                     quality: 10,
-                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                    // --- CORRECCIÓN DEFINITIVA ---
+                    // Apuntamos al archivo local que descargaste en la carpeta 'js'.
+                    workerScript: 'js/gif.worker.js'
                 });
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
