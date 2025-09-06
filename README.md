@@ -1,5 +1,4 @@
-# 🚀 Sprite Sheet Suite v4.3 Titan"
-
+# 🚀 Sprite Sheet Suite v4.4 Dulce"
 
 <!-- Reemplaza la URL de arriba con una captura de pantalla atractiva de tu herramienta -->
 
