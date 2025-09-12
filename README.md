@@ -1,4 +1,4 @@
-# 🚀 Sprite Sheet Suite v4.4 Dulce"
+# 🚀 Sprite Sheet Suite AYARACHI v4.4 
 
 <!-- Reemplaza la URL de arriba con una captura de pantalla atractiva de tu herramienta -->
 
