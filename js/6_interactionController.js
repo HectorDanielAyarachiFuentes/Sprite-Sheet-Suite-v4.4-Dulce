@@ -313,6 +313,7 @@ const InteractionController = (() => {
         if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); HistoryManager.redo(); }
         if (e.key.toLowerCase() === 'c') { e.preventDefault(); App.setActiveTool('create'); }
         if (e.key.toLowerCase() === 'v') { e.preventDefault(); App.setActiveTool('select'); }
+        if (e.key.toLowerCase() === 'b') { e.preventDefault(); App.removeBackground(); }
         if (e.key.toLowerCase() === 'e') { e.preventDefault(); App.setActiveTool('eraser'); }
         if (e.key.toLowerCase() === 'l') { e.preventDefault(); App.toggleLock(); }
     };

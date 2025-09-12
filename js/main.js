@@ -10,7 +10,7 @@ import { InteractionController } from './6_interactionController.js';
 import { AnimationManager } from './7_animationManager.js';
 import { ExportManager } from './8_exportManager.js';
 import { SessionManager } from './9_sessionManager.js';
-import { detectSpritesFromImage } from './spriteDetection.js';
+import { detectSpritesFromImage, detectBackgroundColor, isBackgroundColor } from './spriteDetection.js';
 import { openTutorial } from './tutorial.js';
 
 // --- Zoom Manager (Un pequeño módulo dentro de main) ---
@@ -43,6 +43,7 @@ const ZoomManager = {
 // --- Objeto Principal de la Aplicación ---
 export const App = {
     isReloadingFromStorage: false,
+    isModifyingImage: false,
 
     init() {
         console.log("Aplicación Sprite Sheet iniciada.");
@@ -72,6 +73,7 @@ export const App = {
         });
 
         DOM.imageDisplay.onload = () => {
+            UIManager.hideLoader(); // Centralized place to hide loader
             DOM.welcomeScreen.style.display = 'none';
             DOM.appContainer.style.visibility = 'visible';
             document.body.classList.add('app-loaded');
@@ -82,20 +84,28 @@ export const App = {
             DOM.rulerTop.height = 30; DOM.rulerLeft.width = 30;
             DOM.imageDimensionsP.innerHTML = `<strong>${AppState.currentFileName}:</strong> ${w}px &times; ${h}px`;
 
-            if (!this.isReloadingFromStorage) {
+            if (this.isModifyingImage) {
+                // Image was modified in-place (e.g., background removed)
+                this.isModifyingImage = false;
+                this.updateAll(true); // Redraw and save state with new image
+                SessionManager.addToHistory(); // Update history thumbnail with the new image
+                UIManager.showToast('Fondo eliminado con éxito.', 'success');
+            } else if (!this.isReloadingFromStorage) {
+                // This is a brand new image load
                 HistoryManager.reset();
                 this.clearAll(true);
                 SessionManager.addToHistory();
                 ZoomManager.fit();
-            } else {
+            } else { // isReloadingFromStorage is true
+                // This is a project load from history or last session
                 this.updateAll(false);
                 ZoomManager.apply();
                 this.isReloadingFromStorage = false;
             }
             UIManager.setControlsEnabled(true);
 
-            // Mostrar tutorial después de cargar la imagen, si no está deshabilitado
-            if (!localStorage.getItem('hideTutorial')) {
+            // Show tutorial only on first load of a new image
+            if (!this.isReloadingFromStorage && !this.isModifyingImage && !localStorage.getItem('hideTutorial')) {
                 openTutorial();
             }
         };
@@ -129,6 +139,7 @@ export const App = {
         DOM.selectToolButton.addEventListener('click', () => this.setActiveTool('select'));
         DOM.createFrameToolButton.addEventListener('click', () => this.setActiveTool('create'));
         DOM.eraserToolButton.addEventListener('click', () => this.setActiveTool('eraser'));
+        DOM.removeBgToolButton.addEventListener('click', () => this.removeBackground());
         DOM.autoDetectButton.addEventListener('click', () => this.detectSprites());
         DOM.autoDetectToolButton.addEventListener('click', () => this.detectSprites());
         DOM.generateGridButton.addEventListener('click', () => this.generateByGrid());
@@ -274,6 +285,59 @@ export const App = {
         DOM.lockFramesButton.classList.toggle('locked', AppState.isLocked);
         UIManager.showToast(AppState.isLocked ? 'Frames bloqueados' : 'Frames desbloqueados', 'primary');
         CanvasView.drawAll();
+    },
+
+    async removeBackground() {
+        if (AppState.isLocked) { UIManager.showToast('Desbloquea los frames primero (L)', 'warning'); return; }
+        if (!DOM.imageDisplay.src || DOM.imageDisplay.src.startsWith('http') || DOM.imageDisplay.naturalWidth === 0) {
+            UIManager.showToast('No hay imagen cargada para procesar.', 'warning');
+            return;
+        }
+
+        if (!confirm('Esta acción modificará la imagen permanentemente para esta sesión (puedes cambiar la imagen para revertir). ¿Deseas continuar?')) {
+            return;
+        }
+
+        UIManager.showLoader('Eliminando fondo...');
+        
+        // Use a timeout to allow the loader to show
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        try {
+            const imageEl = DOM.imageDisplay;
+            const w = imageEl.naturalWidth;
+            const h = imageEl.naturalHeight;
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            tempCtx.drawImage(imageEl, 0, 0);
+
+            const imageData = tempCtx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+
+            const bgColor = detectBackgroundColor(data, w, h);
+            const tolerance = parseInt(DOM.autoDetectToleranceInput.value, 10);
+
+            for (let i = 0; i < data.length; i += 4) {
+                if (isBackgroundColor(data, i, bgColor, tolerance)) {
+                    data[i + 3] = 0; // Set alpha to 0
+                }
+            }
+
+            tempCtx.putImageData(imageData, 0, 0);
+
+            this.isModifyingImage = true; // Set flag before changing src
+            // The onload event will handle hiding the loader, updating UI, and showing toast.
+            DOM.imageDisplay.src = tempCanvas.toDataURL('image/png');
+
+        } catch (error) {
+            console.error("Error eliminando el fondo:", error);
+            UIManager.showToast('Ocurrió un error al eliminar el fondo.', 'danger');
+            this.isModifyingImage = false;
+            UIManager.hideLoader(); // Hide loader on error
+        }
     },
 
     toggleFullscreen() {

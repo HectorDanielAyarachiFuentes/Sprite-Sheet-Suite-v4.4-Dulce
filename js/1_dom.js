@@ -59,6 +59,7 @@ export const DOM = {
     createFrameToolButton: document.getElementById('create-frame-tool-button'),
     eraserToolButton: document.getElementById('eraser-tool-button'),
     autoDetectToolButton: document.getElementById('auto-detect-tool-button'),
+    removeBgToolButton: document.getElementById('remove-bg-tool-button'),
     editorArea: document.getElementById('editor-area'),
     imageContainer: document.getElementById('image-container'),
     zoomOutButton: document.getElementById('zoom-out-button'),
