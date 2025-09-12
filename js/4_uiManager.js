@@ -128,7 +128,7 @@ const UIManager = (() => {
             this.updateClipsSelect();
             this.updateFramesList();
             this.updateJsonOutput();
-        this.updateSubFramePanel();
+            this.updateSubFramePanel();
             HistoryManager.updateButtons();
     },
     updateSubFramePanel() {

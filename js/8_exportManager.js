@@ -89,10 +89,13 @@ body {
     position: absolute;
     left: 0;
     top: 0;
+    /* El tamaño inicial se basa en el primer frame de la animación */
     width: ${animFrames[0].rect.w}px;
     height: ${animFrames[0].rect.h}px;
-    background-image: url('${AppState.currentFileName}');
-    background-repeat: no-repeat; /* <-- CORRECCIÓN CRÍTICA */
+    /* La imagen de fondo es la hoja de sprites completa.
+       Usamos imageDisplay.src para que funcione con data:URL (ej. al quitar fondo) */
+    background-image: url('${DOM.imageDisplay.src}');
+    background-repeat: no-repeat;
     
     /* Mantiene los píxeles nítidos */
     image-rendering: pixelated;
@@ -126,6 +129,27 @@ ${keyframesSteps}
             // Forzar estado inicial al cargar la página
             DOM.gifBgColor.disabled = DOM.gifTransparentBg.checked;
             DOM.gifBgColorGroup.style.display = DOM.gifTransparentBg.checked ? 'none' : 'flex';
+
+            // Listeners para el tamaño del GIF y el bloqueo de proporción
+            DOM.gifWidthInput.addEventListener('input', () => {
+                if (!DOM.gifAspectRatioLock.checked) return;
+                const aspectRatio = AppState.getAnimationAspectRatio();
+                const newWidth = parseInt(DOM.gifWidthInput.value, 10);
+                if (!isNaN(newWidth) && aspectRatio > 0) {
+                    const newHeight = Math.round(newWidth / aspectRatio);
+                    if (newHeight > 0) DOM.gifHeightInput.value = newHeight;
+                }
+            });
+
+            DOM.gifHeightInput.addEventListener('input', () => {
+                if (!DOM.gifAspectRatioLock.checked) return;
+                const aspectRatio = AppState.getAnimationAspectRatio();
+                const newHeight = parseInt(DOM.gifHeightInput.value, 10);
+                if (!isNaN(newHeight) && aspectRatio > 0) {
+                    const newWidth = Math.round(newHeight * aspectRatio);
+                    if (newWidth > 0) DOM.gifWidthInput.value = newWidth;
+                }
+            });
             
             // Listener para copiar código al portapapeles
             document.body.addEventListener('click', (e) => {
@@ -198,8 +222,8 @@ ${keyframesSteps}
             try {
                 const isTransparent = DOM.gifTransparentBg.checked;
                 const bgColor = DOM.gifBgColor.value;
-                const maxSize = parseInt(DOM.maxGifSizeInput.value) || 128;
-
+                const gifWidth = parseInt(DOM.gifWidthInput.value, 10) || 128;
+                const gifHeight = parseInt(DOM.gifHeightInput.value, 10) || 128;
                 // --- LÓGICA DE CÁLCULO DE TAMAÑO MEJORADA ---
                 // 1. Calcular el bounding box de toda la animación para un tamaño consistente.
                 const animBBox = {
@@ -211,10 +235,9 @@ ${keyframesSteps}
                 const animWidth = animBBox.maxX - animBBox.minX;
                 const animHeight = animBBox.maxY - animBBox.minY;
 
-                // 2. Calcular la escala y las dimensiones finales del GIF para que quepa en maxSize.
-                const scale = Math.min(1, maxSize / animWidth, maxSize / animHeight);
-                const gifWidth = Math.round(animWidth * scale);
-                const gifHeight = Math.round(animHeight * scale);
+                // 2. Calcular la escala para cada eje. Esto permite estirar si la proporción no se mantiene.
+                const scaleX = animWidth > 0 ? gifWidth / animWidth : 0;
+                const scaleY = animHeight > 0 ? gifHeight / animHeight : 0;
 
                 const gifOptions = {
                     workers: 2,
@@ -248,10 +271,10 @@ ${keyframesSteps}
                     }
 
                     // 2. Calcular la posición y tamaño del sprite DENTRO del canvas del GIF.
-                    const drawW = w * scale;
-                    const drawH = h * scale;
-                    const drawX = (-frame.offset.x - animBBox.minX) * scale;
-                    const drawY = (-frame.offset.y - animBBox.minY) * scale;
+                    const drawW = w * scaleX;
+                    const drawH = h * scaleY;
+                    const drawX = (-frame.offset.x - animBBox.minX) * scaleX;
+                    const drawY = (-frame.offset.y - animBBox.minY) * scaleY;
 
                     // 3. Dibujar el sprite en el canvas.
                     tempCtx.drawImage(DOM.imageDisplay, x, y, w, h, drawX, drawY, drawW, drawH);
@@ -264,7 +287,12 @@ ${keyframesSteps}
 
                         for (let i = 0; i < data.length; i += 4) {
                             if (data[i + 3] < alphaThreshold) {
-                                data[i] = 255; data[i + 1] = 0; data[i + 2] = 255;
+                                // Convertir a magenta y hacerlo opaco. gif.js usará este color como la clave de transparencia.
+                                // Hacerlo opaco evita que el canvas o la librería se confundan con píxeles "magenta transparentes".
+                                data[i] = 255;     // R
+                                data[i + 1] = 0;   // G
+                                data[i + 2] = 255; // B
+                                data[i + 3] = 255; // A (Hacer opaco)
                             }
                         }
                         gif.addFrame(imageData, { copy: true, delay: 1000 / AppState.animation.fps });

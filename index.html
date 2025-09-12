@@ -248,7 +248,16 @@
                             </details>
                             <details class="sub-panel">
                                 <summary>Clip a GIF</summary>
-                                <div class="input-group"><label>Tamaño Máx:</label><input type="number" id="max-gif-size" value="128" min="16"></div>
+                                <div class="input-group">
+                                    <label for="gif-width">Ancho:</label>
+                                    <input type="number" id="gif-width" value="128" min="16">
+                                    <label for="gif-height" style="margin-left: 10px;">Alto:</label>
+                                    <input type="number" id="gif-height" value="128" min="16">
+                                </div>
+                                <div class="input-group">
+                                    <input type="checkbox" id="gif-aspect-ratio-lock" checked>
+                                    <label for="gif-aspect-ratio-lock" title="Bloquea la relación de aspecto al cambiar el tamaño.">Mantener proporción</label>
+                                </div>
                                 <div class="input-group">
                                     <label for="gif-transparent-bg">Fondo transparente</label>
                                     <input type="checkbox" id="gif-transparent-bg" checked title="Si se desmarca, puede elegir un color de fondo.">

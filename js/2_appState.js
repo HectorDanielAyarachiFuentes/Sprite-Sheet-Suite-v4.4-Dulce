@@ -85,5 +85,22 @@ export const AppState = {
             }
         });
         return flattened;
+    },
+
+    getAnimationAspectRatio() {
+        const animFrames = this.getAnimationFrames();
+        if (animFrames.length === 0) return 1;
+
+        const animBBox = {
+            minX: Math.min(...animFrames.map(f => -f.offset.x)),
+            minY: Math.min(...animFrames.map(f => -f.offset.y)),
+            maxX: Math.max(...animFrames.map(f => -f.offset.x + f.rect.w)),
+            maxY: Math.max(...animFrames.map(f => -f.offset.y + f.rect.h)),
+        };
+        const animWidth = animBBox.maxX - animBBox.minX;
+        const animHeight = animBBox.maxY - animBBox.minY;
+
+        if (animHeight === 0 || animWidth === 0) return 1;
+        return animWidth / animHeight;
     }
 };
