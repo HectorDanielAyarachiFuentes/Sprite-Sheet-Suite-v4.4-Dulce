@@ -78,6 +78,16 @@ export const DOM = {
     subframeOffsetYInput: document.getElementById('subframe-offset-y'),
     snapToGridCheckbox: document.getElementById('snap-to-grid-checkbox'),
     gridSizeInput: document.getElementById('grid-size-input'),
+    // --- NUEVO: Inspector de Frames ---
+    frameInspectorToolButton: document.getElementById('frame-inspector-tool-button'),
+    frameInspectorPanel: document.getElementById('frame-inspector-panel'),
+    closeInspectorButton: document.getElementById('close-inspector-button'),
+    alignGrid: document.getElementById('align-grid'),
+    unifyWidthInput: document.getElementById('unify-width-input'),
+    unifyHeightInput: document.getElementById('unify-height-input'),
+    unifySizeButton: document.getElementById('unify-size-button'),
+    inspectorGrid: document.getElementById('inspector-grid'),
+    // --- FIN ---
     loadingOverlay: document.getElementById('loading-overlay'),
     allControls: document.querySelectorAll('button, input, select'),
 };

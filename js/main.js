@@ -37,6 +37,29 @@ const ZoomManager = {
         const scaleY = viewHeight / DOM.imageDisplay.naturalHeight;
         AppState.zoomLevel = Math.min(scaleX, scaleY, 1);
         this.apply();
+    },
+    zoomToRect(rect) {
+        if (!rect) return;
+        const editorRect = DOM.editorArea.getBoundingClientRect();
+        // Añadir algo de padding a la vista
+        const viewWidth = editorRect.width - 100;
+        const viewHeight = editorRect.height - 100;
+
+        const scaleX = viewWidth / rect.w;
+        const scaleY = viewHeight / rect.h;
+        
+        // Establecer un nivel de zoom razonable, ni muy cerca ni muy lejos.
+        AppState.zoomLevel = Math.min(scaleX, scaleY, 4); // Zoom máximo 4x
+        this.apply();
+
+        // Ahora, hacer scroll hacia el rectángulo.
+        const scaledRectX = rect.x * AppState.zoomLevel;
+        const scaledRectY = rect.y * AppState.zoomLevel;
+        const scaledW = rect.w * AppState.zoomLevel;
+        const scaledH = rect.h * AppState.zoomLevel;
+
+        DOM.editorArea.scrollLeft = scaledRectX - (editorRect.width / 2) + (scaledW / 2);
+        DOM.editorArea.scrollTop = scaledRectY - (editorRect.height / 2) + (scaledH / 2);
     }
 };
 
@@ -140,6 +163,17 @@ export const App = {
         DOM.createFrameToolButton.addEventListener('click', () => this.setActiveTool('create'));
         DOM.eraserToolButton.addEventListener('click', () => this.setActiveTool('eraser'));
         DOM.removeBgToolButton.addEventListener('click', () => this.removeBackground());
+        // --- NUEVO: Inspector de Frames ---
+        DOM.frameInspectorToolButton.addEventListener('click', () => this.openFrameInspector());
+        DOM.closeInspectorButton.addEventListener('click', () => this.closeFrameInspector());
+        DOM.alignGrid.addEventListener('click', (e) => {
+            const button = e.target.closest('.align-btn');
+            if (button && button.dataset.align) {
+                this.alignFramesByOffset(button.dataset.align);
+            }
+        });
+        DOM.unifySizeButton.addEventListener('click', () => this.unifyFrameSizes());
+        // --- FIN ---
         DOM.autoDetectButton.addEventListener('click', () => this.detectSprites());
         DOM.autoDetectToolButton.addEventListener('click', () => this.detectSprites());
         DOM.generateGridButton.addEventListener('click', () => this.generateByGrid());
@@ -375,6 +409,154 @@ export const App = {
             this.isModifyingImage = false;
             UIManager.hideLoader(); // Hide loader on error
         }
+    },
+
+    // --- NUEVO: Funciones del Inspector de Frames ---
+    openFrameInspector() {
+        const INSPECTOR_THUMB_SIZE = 100; // Tamaño máximo para las miniaturas en píxeles
+        const allFrames = AppState.getFlattenedFrames();
+        if (allFrames.length === 0) {
+            UIManager.showToast('No hay frames para inspeccionar. Crea algunos primero.', 'warning');
+            return;
+        }
+
+        DOM.inspectorGrid.innerHTML = ''; // Limpiar la vista anterior
+
+        // Analizar tamaños para resaltar inconsistencias
+        const sizes = allFrames.map(f => `${f.rect.w}x${f.rect.h}`);
+        const counts = sizes.reduce((acc, val) => {
+            acc[val] = (acc[val] || 0) + 1;
+            return acc;
+        }, {});
+        const mostCommonSize = Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : null;
+
+        allFrames.forEach(frame => {
+            const card = document.createElement('div');
+            card.className = 'inspector-card';
+            card.dataset.subFrameId = frame.id; // Guardar ID para el evento de clic
+
+            const canvasContainer = document.createElement('div');
+            canvasContainer.className = 'canvas-container';
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // --- LÓGICA DE ESCALADO ADAPTATIVO ---
+            const scale = Math.min(INSPECTOR_THUMB_SIZE / frame.rect.w, INSPECTOR_THUMB_SIZE / frame.rect.h, 1);
+            canvas.width = frame.rect.w * scale;
+            canvas.height = frame.rect.h * scale;
+            ctx.imageSmoothingEnabled = false; // Mantener el pixel art nítido
+            ctx.drawImage(DOM.imageDisplay, frame.rect.x, frame.rect.y, frame.rect.w, frame.rect.h, 0, 0, canvas.width, canvas.height);
+
+            canvasContainer.appendChild(canvas);
+
+            const dimensions = document.createElement('p');
+            dimensions.className = 'dimensions';
+            const currentSize = `${frame.rect.w}x${frame.rect.h}`;
+            dimensions.textContent = currentSize;
+            if (mostCommonSize && currentSize !== mostCommonSize) {
+                dimensions.classList.add('mismatch');
+                dimensions.title = `Difiere del tamaño más común (${mostCommonSize})`;
+            }
+
+            card.appendChild(canvasContainer);
+            card.appendChild(dimensions);
+            DOM.inspectorGrid.appendChild(card);
+
+            // --- LÓGICA DE CLIC PARA SELECCIONAR ---
+            card.addEventListener('click', () => {
+                const subFrameId = card.dataset.subFrameId;
+                const parentFrameId = parseInt(subFrameId.split('_')[0], 10);
+                const subFrame = allFrames.find(f => f.id === subFrameId);
+
+                if (subFrame && AppState.frames.some(f => f.id === parentFrameId)) {
+                    AppState.selectedFrameId = parentFrameId;
+                    AppState.selectedSubFrameId = subFrameId;
+                    this.closeFrameInspector();
+                    this.updateAll(false); // Redibujar el lienzo principal con la nueva selección
+                    ZoomManager.zoomToRect(subFrame.rect); // Enfocar en el frame seleccionado
+                }
+            });
+        });
+
+        const canAlign = AppState.getActiveClip() && AppState.getAnimationFrames().length > 0;
+        DOM.alignGrid.style.opacity = canAlign ? '1' : '0.5';
+        DOM.alignGrid.style.pointerEvents = canAlign ? 'auto' : 'none';
+        DOM.frameInspectorPanel.classList.remove('hidden');
+    },
+
+    closeFrameInspector() { DOM.frameInspectorPanel.classList.add('hidden'); },
+
+    unifyFrameSizes() {
+        const animFrames = AppState.getAnimationFrames();
+        if (animFrames.length === 0) { UIManager.showToast('No hay frames en el clip activo para unificar.', 'warning'); return; }
+
+        const allSimple = animFrames.every(sf => !String(sf.id).includes('_'));
+        if (!allSimple) {
+            UIManager.showToast('La unificación de tamaño solo funciona con frames simples (no de parrillas/grupos).', 'warning');
+            return;
+        }
+        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto modificará permanentemente los rectángulos de los frames en el clip actual para unificar su tamaño. Esta acción no se puede deshacer fácilmente.\n\n¿Estás seguro de que quieres continuar?')) {
+            return;
+        }
+
+        const inputW = parseInt(DOM.unifyWidthInput.value, 10);
+        const inputH = parseInt(DOM.unifyHeightInput.value, 10);
+
+        const targetW = isNaN(inputW) || inputW <= 0 ? Math.max(...animFrames.map(f => f.rect.w)) : inputW;
+        const targetH = isNaN(inputH) || inputH <= 0 ? Math.max(...animFrames.map(f => f.rect.h)) : inputH;
+
+        animFrames.forEach(subFrame => {
+            // Como hemos comprobado que son frames simples, el subFrame.id es el mismo que el del frame original.
+            const originalFrame = AppState.frames.find(f => f.id == subFrame.id);
+            if (!originalFrame) return;
+
+            const { x, y, w, h } = originalFrame.rect;
+            
+            // El nuevo rectángulo se centra en el centro del rectángulo antiguo.
+            const newX = x + (w / 2) - (targetW / 2);
+            const newY = y + (h / 2) - (targetH / 2);
+
+            originalFrame.rect.x = Math.round(newX);
+            originalFrame.rect.y = Math.round(newY);
+            originalFrame.rect.w = targetW;
+            originalFrame.rect.h = targetH;
+
+            // Reseteamos el offset ya que el tamaño ahora está unificado y el "jitter" se ha eliminado.
+            delete AppState.subFrameOffsets[originalFrame.id];
+        });
+
+        this.closeFrameInspector(); // Cerrar el inspector para mostrar el lienzo principal.
+        this.updateAll(true); // Guardar el estado y actualizar toda la UI, incluida la previsualización.
+        
+        UIManager.showToast(`Dimensiones de frames unificadas a ${targetW}x${targetH}px.`, 'success');
+    },
+
+    alignFramesByOffset(alignMode = 'center') {
+        const animFrames = AppState.getAnimationFrames();
+        if (animFrames.length === 0) { UIManager.showToast('No hay frames en el clip activo para alinear.', 'warning'); return; }
+        
+        const maxWidth = Math.max(...animFrames.map(f => f.rect.w));
+        const maxHeight = Math.max(...animFrames.map(f => f.rect.h));
+
+        animFrames.forEach(frame => {
+            let offsetX = 0, offsetY = 0;
+            const { w, h } = frame.rect;
+
+            if (alignMode.includes('left')) { offsetX = 0; } 
+            else if (alignMode.includes('right')) { offsetX = maxWidth - w; } 
+            else { offsetX = (maxWidth - w) / 2; } // center
+
+            if (alignMode.includes('top')) { offsetY = 0; } 
+            else if (alignMode.includes('bottom')) { offsetY = maxHeight - h; } 
+            else { offsetY = (maxHeight - h) / 2; } // middle or center
+
+            AppState.subFrameOffsets[frame.id] = { x: Math.round(offsetX), y: Math.round(offsetY) };
+        });
+
+        HistoryManager.saveGlobalState();
+        this.updateAll(false);
+        UIManager.showToast(`Frames alineados (offset) a: ${alignMode}.`, 'success');
     },
 
     toggleFullscreen() {
