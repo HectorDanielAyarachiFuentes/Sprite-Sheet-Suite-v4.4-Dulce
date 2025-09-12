@@ -34,8 +34,8 @@ const HistoryManager = (() => {
         localHistoryStack = [];
         localHistoryIndex = -1;
         localHistoryFrameId = null;
-        App.updateAll(false);
-        SessionManager.saveCurrent();
+        App.updateAll(false); // Redibujar
+        SessionManager.saveCurrent(false); // Guardar el estado cargado, pero sin la imagen
     };
 
     return {
@@ -51,8 +51,8 @@ const HistoryManager = (() => {
             historyIndex++;
             localHistoryStack = [];
             localHistoryIndex = -1;
-            updateButtons();
-            SessionManager.saveCurrent();
+            updateButtons(); 
+            SessionManager.saveCurrent(false); // Guardar solo metadatos, no la imagen
         },
         saveLocalState: () => {
             const frame = AppState.frames.find(f => f.id === AppState.selectedFrameId);
@@ -68,8 +68,8 @@ const HistoryManager = (() => {
                 vSlices: frame.vSlices
             }));
             localHistoryIndex++;
-            updateButtons();
-            SessionManager.saveCurrent();
+            updateButtons(); 
+            SessionManager.saveCurrent(false); // Guardar solo metadatos, no la imagen
         },
         undo: () => {
             if (localHistoryIndex > 0) {
@@ -80,8 +80,8 @@ const HistoryManager = (() => {
                     frame.hSlices = state.hSlices;
                     frame.vSlices = state.vSlices;
                 }
-                App.updateAll(false);
-                SessionManager.saveCurrent();
+                App.updateAll(false); // Redibujar
+                SessionManager.saveCurrent(false); // Guardar el estado deshecho
             } else if (historyIndex > 0) {
                 historyIndex--;
                 loadState(historyStack[historyIndex]);
@@ -96,8 +96,8 @@ const HistoryManager = (() => {
                     frame.hSlices = state.hSlices;
                     frame.vSlices = state.vSlices;
                 }
-                App.updateAll(false);
-                SessionManager.saveCurrent();
+                App.updateAll(false); // Redibujar
+                SessionManager.saveCurrent(false); // Guardar el estado rehecho
             } else if (historyIndex < historyStack.length - 1) {
                 historyIndex++;
                 loadState(historyStack[historyIndex]);

@@ -144,6 +144,7 @@ export const App = {
         DOM.autoDetectToolButton.addEventListener('click', () => this.detectSprites());
         DOM.generateGridButton.addEventListener('click', () => this.generateByGrid());
         DOM.generateBySizeButton.addEventListener('click', () => this.generateBySize());
+        DOM.guessGridButton.addEventListener('click', () => this.guessGrid());
         DOM.zoomInButton.addEventListener('click', () => ZoomManager.zoomIn());
         DOM.zoomOutButton.addEventListener('click', () => ZoomManager.zoomOut());
         DOM.zoomFitButton.addEventListener('click', () => ZoomManager.fit());
@@ -398,6 +399,63 @@ export const App = {
         UIManager.showToast('Frames generados por tamaño con éxito.', 'success');
     },
     
+    async guessGrid() {
+        if (AppState.isLocked) { UIManager.showToast('Desbloquea los frames primero (L)', 'warning'); return; }
+        
+        UIManager.showLoader('Analizando imagen para adivinar la parrilla...');
+        DOM.guessGridButton.disabled = true;
+    
+        // Use a timeout to allow the loader to show
+        await new Promise(resolve => setTimeout(resolve, 50));
+    
+        try {
+            const tolerance = parseInt(DOM.autoDetectToleranceInput.value, 10);
+            // We can use a higher minSpriteSize to filter out noise
+            const detectedFrames = await detectSpritesFromImage(DOM.imageDisplay, { tolerance, minSpriteSize: 8 });
+    
+            if (detectedFrames.length < 3) { // Need at least a few sprites to make a good guess
+                UIManager.showToast('No se encontraron suficientes sprites para adivinar un patrón de parrilla.', 'warning');
+                return;
+            }
+    
+            // Find the most common width and height
+            const findMode = (arr) => {
+                if (arr.length === 0) return null;
+                // Group similar sizes together to handle minor variations (e.g. rounding to nearest 4px)
+                const roundedArr = arr.map(val => Math.round(val / 4) * 4);
+                const counts = roundedArr.reduce((acc, val) => {
+                    if (val > 0) acc[val] = (acc[val] || 0) + 1;
+                    return acc;
+                }, {});
+
+                if (Object.keys(counts).length === 0) return null;
+
+                return parseInt(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
+            };
+    
+            const widths = detectedFrames.map(f => f.rect.w);
+            const heights = detectedFrames.map(f => f.rect.h);
+    
+            const modeWidth = findMode(widths);
+            const modeHeight = findMode(heights);
+    
+            if (modeWidth && modeHeight) {
+                DOM.cellWInput.value = modeWidth;
+                DOM.cellHInput.value = modeHeight;
+                UIManager.showToast(`Tamaño de celda sugerido: ${modeWidth}x${modeHeight}. Haz clic en "Generar por Tamaño".`, 'success');
+            } else {
+                UIManager.showToast('No se pudo determinar un tamaño de celda consistente.', 'warning');
+            }
+    
+        } catch (error) {
+            console.error("Error adivinando la parrilla:", error);
+            UIManager.showToast('Ocurrió un error al analizar la imagen.', 'danger');
+        } finally {
+            UIManager.hideLoader();
+            DOM.guessGridButton.disabled = false;
+        }
+    },
+
     detectSprites() {
         if (AppState.isLocked) { UIManager.showToast('Desbloquea los frames primero (L)', 'warning'); return; }
         if (AppState.frames.length > 0 && !confirm('Esta acción borrará los frames existentes. ¿Continuar?')) return;

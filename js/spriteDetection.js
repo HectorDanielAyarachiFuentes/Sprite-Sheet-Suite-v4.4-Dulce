@@ -19,7 +19,7 @@
 /** @type {DetectionConfig} */
 const DEFAULT_CONFIG = {
     tolerance: 10,
-    minSpriteSize: 4,
+    minSpriteSize: 8,
     use8WayConnectivity: false,
     enableLogging: false,
     useWebWorker: true,
@@ -2198,6 +2198,56 @@ function aiDetectionAlgorithm(imageElement, config) {
 }
 
 /**
+ * Filtra los sprites pequeños y ruidosos de una lista de frames detectados.
+ * Esta función es "inteligente" porque se adapta al tamaño de los sprites encontrados.
+ * @param {Array} frames - El array de frames de sprites detectados.
+ * @param {DetectionConfig} config - La configuración de detección.
+ * @returns {Array} El array de frames filtrado.
+ */
+function filterNoisySprites(frames, config) {
+    // No filtrar si hay muy pocos sprites, ya que podrían ser intencionales.
+    if (frames.length < 10) {
+        return frames;
+    }
+
+    const areas = frames.map(f => f.rect.w * f.rect.h).sort((a, b) => a - b);
+    
+    // Calcular el área mediana. La mediana es más robusta a valores atípicos que la media.
+    const mid = Math.floor(areas.length / 2);
+    const medianArea = areas.length % 2 !== 0 ? areas[mid] : (areas[mid - 1] + areas[mid]) / 2;
+
+    // No filtrar si el sprite mediano ya es muy pequeño.
+    if (medianArea < 64) { // ej. menos de 8x8 píxeles
+        return frames;
+    }
+
+    // Definir un umbral. Los sprites con un área por debajo de esto se consideran ruido.
+    // Usamos una fracción del área mediana. Esto hace que el filtro sea adaptativo.
+    const noiseAreaThreshold = medianArea * 0.1; // 10% del área mediana.
+
+    const filteredFrames = frames.filter(f => {
+        const area = f.rect.w * f.rect.h;
+        // Mantener los sprites que son más grandes que el umbral de ruido.
+        return area >= noiseAreaThreshold;
+    });
+
+    // Como medida de seguridad, si el filtro elimina demasiados sprites (ej. > 80%), podría ser un error.
+    // En ese caso, es más seguro devolver los frames originales.
+    if (filteredFrames.length < frames.length * 0.2) {
+        if (config.enableLogging) {
+            console.log("El filtrado eliminaría demasiados sprites. Revirtiendo el filtro.");
+        }
+        return frames;
+    }
+    
+    if (config.enableLogging) {
+        console.log(`Filtrando sprites. Área mediana: ${medianArea}. Umbral de ruido: ${noiseAreaThreshold}. Se conservan ${filteredFrames.length} de ${frames.length}.`);
+    }
+
+    return filteredFrames;
+}
+
+/**
  * Detecta sprites automáticamente en una imagen usando algoritmos avanzados
  * @param {HTMLImageElement} imageElement - Elemento de imagen a procesar
  * @param {Partial<DetectionConfig>} config - Configuración opcional
@@ -2239,18 +2289,21 @@ export function detectSpritesFromImage(imageElement, config = {}) {
                 // Procesamiento en hilo principal
                 algorithm(imageElement, finalConfig)
                     .then(result => {
+                        const processedResult = filterNoisySprites(result, finalConfig);
+
                         // Cachear resultado
                         if (finalConfig.enableCache) {
                             const cacheKey = getCacheKey(imageElement, finalConfig);
-                            detectionCache.set(cacheKey, result);
+                            detectionCache.set(cacheKey, processedResult);
                             manageCacheSize();
                         }
 
                         if (finalConfig.enableLogging) {
-                            console.log(`✅ Detección completada: ${result.length} sprites encontrados`);
+                            const filteredCount = result.length - processedResult.length;
+                            console.log(`✅ Detección completada: ${processedResult.length} sprites encontrados (filtrados ${filteredCount} como ruido).`);
                         }
 
-                        resolve(result);
+                        resolve(processedResult);
                     })
                     .catch(reject);
             }
@@ -2287,19 +2340,22 @@ function processWithWebWorker(imageElement, config, resolve, reject) {
         const { success, frames, stats, error } = e.data;
 
         if (success) {
+            const processedFrames = filterNoisySprites(frames, config);
+
             // Cachear resultado
             if (config.enableCache) {
                 const cacheKey = getCacheKey(imageElement, config);
-                detectionCache.set(cacheKey, frames);
+                detectionCache.set(cacheKey, processedFrames);
                 manageCacheSize();
             }
 
             if (config.enableLogging) {
-                console.log(`✅ Detección Web Worker completada: ${frames.length} sprites encontrados`);
+                const filteredCount = frames.length - processedFrames.length;
+                console.log(`✅ Detección Web Worker completada: ${processedFrames.length} sprites encontrados (filtrados ${filteredCount} como ruido).`);
                 console.log('📊 Estadísticas:', stats);
             }
 
-            resolve(frames);
+            resolve(processedFrames);
         } else {
             reject(new Error(`Error en Web Worker: ${error}`));
         }

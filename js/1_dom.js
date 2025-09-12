@@ -18,6 +18,7 @@ export const DOM = {
     cellHInput: document.getElementById('cell-h-input'),
     generateGridButton: document.getElementById('generate-grid-button'),
     generateBySizeButton: document.getElementById('generate-by-size-button'),
+    guessGridButton: document.getElementById('guess-grid-button'),
     clearButton: document.getElementById('clear-button'),
     previewCanvas: document.getElementById('preview-canvas'),
     playPauseButton: document.getElementById('play-pause-button'),

@@ -90,20 +90,6 @@ const InteractionController = (() => {
         const frameAtClick = getFrameAtPos(pos);
         const subFrameAtClick = getSubFrameAtPos(pos);
 
-        // --- LÓGICA DE SELECCIÓN MEJORADA ---
-        if (frameAtClick) {
-            // Primero, intenta seleccionar una línea DENTRO del frame clickeado
-            const sliceAtClick = getSliceAtPos(pos, frameAtClick);
-            if (sliceAtClick) {
-                AppState.selectedSlice = sliceAtClick;
-                AppState.selectedFrameId = frameAtClick.id; // Asegurarse de que el frame padre esté seleccionado
-                InteractionState.isDraggingSlice = true;
-                InteractionState.draggedSlice = sliceAtClick; // Guardamos para el drag
-                App.updateAll(false);
-                return;
-            }
-        }
-
         // Lógica de Slicing Universal (Crear nuevas líneas)
         if (frameAtClick && (e.altKey || e.ctrlKey || e.metaKey)) {
             // ... (el resto de esta lógica no cambia) ...
@@ -138,19 +124,26 @@ const InteractionController = (() => {
                     return;
                 }
                 
-                InteractionState.resizeHandle = getHandleAtPos(InteractionState.startPos);
+                const handleAtClick = getHandleAtPos(InteractionState.startPos);
+                const sliceAtClick = getSliceAtPos(pos, frameAtClick);
                 
-                if (InteractionState.resizeHandle) {
+                if (handleAtClick) {
                     InteractionState.isResizing = true;
+                    InteractionState.resizeHandle = handleAtClick;
                     AppState.selectedSubFrameId = null; // Deseleccionar sub-frame al redimensionar
                     AppState.selectedSlice = null; // Al redimensionar, deseleccionamos cualquier línea
+                } else if (sliceAtClick) {
+                    // Si se hizo clic en una línea, la seleccionamos e iniciamos el arrastre.
+                    AppState.selectedSlice = sliceAtClick;
+                    AppState.selectedFrameId = frameAtClick.id;
+                    InteractionState.isDraggingSlice = true;
+                    InteractionState.draggedSlice = sliceAtClick;
                 } else if (frameAtClick) {
-                    // Si no se hizo clic en una línea, seleccionamos el frame
+                    // Si no se hizo clic en una línea o handle, seleccionamos el frame
                     if (AppState.selectedFrameId !== frameAtClick.id) HistoryManager.resetLocal();
                     AppState.selectedFrameId = frameAtClick.id;
                     AppState.selectedSubFrameId = subFrameAtClick ? subFrameAtClick.id : null;
                     AppState.selectedSlice = null; // Deseleccionamos cualquier línea anterior
-                    HistoryManager.setLocalFrameId(AppState.selectedFrameId);
                     InteractionState.isDragging = true;
                 } else {
                     // Clic en el vacío
