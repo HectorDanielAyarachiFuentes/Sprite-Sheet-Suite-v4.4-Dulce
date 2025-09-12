@@ -242,8 +242,23 @@
                     <details class="panel" id="export-panel">
                         <summary>Exportar</summary>
                         <div class="export-options">
-                            <details class="sub-panel"><summary>Frames Individuales</summary><button id="export-zip-button" disabled>Descargar Frames (ZIP)</button></details>
-                            <details class="sub-panel"><summary>Clip a GIF</summary><div class="input-group"><label>Tamaño Máx:</label><input type="number" id="max-gif-size" value="128" min="16"></div><button id="export-gif-button" disabled>Descargar GIF</button></details>
+                            <details class="sub-panel">
+                                <summary>Frames Individuales</summary>
+                                <button id="export-zip-button" disabled>Descargar Frames (ZIP)</button>
+                            </details>
+                            <details class="sub-panel">
+                                <summary>Clip a GIF</summary>
+                                <div class="input-group"><label>Tamaño Máx:</label><input type="number" id="max-gif-size" value="128" min="16"></div>
+                                <div class="input-group">
+                                    <label for="gif-transparent-bg">Fondo transparente</label>
+                                    <input type="checkbox" id="gif-transparent-bg" checked title="Si se desmarca, puede elegir un color de fondo.">
+                                </div>
+                                <div class="input-group" id="gif-bg-color-group">
+                                    <label for="gif-bg-color">Color de fondo:</label>
+                                    <input type="color" id="gif-bg-color" value="#FFFFFF">
+                                </div>
+                                <button id="export-gif-button" disabled>Descargar GIF</button>
+                            </details>
                             <details class="sub-panel" id="code-export-details"><summary>A Código</summary>
                                 <div class="input-group">
                                     <label for="export-scale-input">Escala:</label>

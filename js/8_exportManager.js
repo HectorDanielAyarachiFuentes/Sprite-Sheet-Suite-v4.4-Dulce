@@ -116,6 +116,16 @@ ${keyframesSteps}
             DOM.exportZipButton.addEventListener('click', () => this.exportZip());
             DOM.exportGifButton.addEventListener('click', () => this.exportGif());
             DOM.exportCodeButton.addEventListener('click', () => this.exportCode());
+
+            // Listener para las nuevas opciones de exportación de GIF
+            DOM.gifTransparentBg.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                DOM.gifBgColor.disabled = isChecked;
+                DOM.gifBgColorGroup.style.display = isChecked ? 'none' : 'flex';
+            });
+            // Forzar estado inicial al cargar la página
+            DOM.gifBgColor.disabled = DOM.gifTransparentBg.checked;
+            DOM.gifBgColorGroup.style.display = DOM.gifTransparentBg.checked ? 'none' : 'flex';
             
             // Listener para copiar código al portapapeles
             document.body.addEventListener('click', (e) => {
@@ -186,13 +196,18 @@ ${keyframesSteps}
             }
 
             try {
-                const gif = new GIF({
+                const isTransparent = DOM.gifTransparentBg.checked;
+                const bgColor = DOM.gifBgColor.value;
+
+                const gifOptions = {
                     workers: 2,
                     quality: 10,
-                    // --- CORRECCIÓN DEFINITIVA ---
-                    // Apuntamos al archivo local que descargaste en la carpeta 'js'.
-                    workerScript: 'js/gif.worker.js'
-                });
+                    workerScript: 'js/gif.worker.js',
+                    // Usamos un color clave (magenta) que gif.js convertirá en transparente, o null si no hay transparencia.
+                    transparent: isTransparent ? 0xFF00FF : null
+                };
+
+                const gif = new GIF(gifOptions);
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
                 const maxSize = parseInt(DOM.maxGifSizeInput.value) || 128;
@@ -206,6 +221,17 @@ ${keyframesSteps}
                     }
                     tempCanvas.width = Math.round(dW);
                     tempCanvas.height = Math.round(dH);
+
+                    if (isTransparent) {
+                        // Rellenamos el fondo con el color clave (magenta) para que gif.js lo haga transparente.
+                        tempCtx.fillStyle = '#FF00FF';
+                        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    } else {
+                        // Rellenamos el fondo con el color elegido. Esto "aplana" la transparencia del PNG.
+                        tempCtx.fillStyle = bgColor;
+                        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    }
+
                     tempCtx.drawImage(DOM.imageDisplay, x, y, w, h, 0, 0, tempCanvas.width, tempCanvas.height);
                     gif.addFrame(tempCanvas, { copy: true, delay: 1000 / AppState.animation.fps });
                 });
