@@ -612,47 +612,39 @@ export const App = {
 
     unifyFrameSizes() {
         const animFrames = AppState.getAnimationFrames();
-        if (animFrames.length === 0) { UIManager.showToast('No hay frames en el clip activo para unificar.', 'warning'); return; }
-
-        const allSimple = animFrames.every(sf => !String(sf.id).includes('_'));
-        if (!allSimple) {
-            UIManager.showToast('La unificación de tamaño solo funciona con frames simples (no de parrillas/grupos).', 'warning');
+        if (animFrames.length === 0) {
+            UIManager.showToast('No hay frames en el clip activo para unificar.', 'warning');
             return;
         }
-        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto modificará permanentemente los rectángulos de los frames en el clip actual para unificar su tamaño. Esta acción no se puede deshacer fácilmente.\n\n¿Estás seguro de que quieres continuar?')) {
+
+        // Esta acción ya no es destructiva, pero es bueno confirmar la sobreescritura de los offsets.
+        if (!confirm('Esto ajustará los offsets de todos los frames en el clip para que la animación tenga un tamaño consistente. Los offsets manuales existentes se sobrescribirán. Esta acción se puede deshacer (Ctrl+Z).\n\n¿Deseas continuar?')) {
             return;
         }
 
         const inputW = parseInt(DOM.unifyWidthInput.value, 10);
         const inputH = parseInt(DOM.unifyHeightInput.value, 10);
 
+        // Determinar el tamaño objetivo: entrada del usuario o el tamaño máximo de los frames en la animación.
         const targetW = isNaN(inputW) || inputW <= 0 ? Math.max(...animFrames.map(f => f.rect.w)) : inputW;
         const targetH = isNaN(inputH) || inputH <= 0 ? Math.max(...animFrames.map(f => f.rect.h)) : inputH;
 
-        animFrames.forEach(subFrame => {
-            // Como hemos comprobado que son frames simples, el subFrame.id es el mismo que el del frame original.
-            const originalFrame = AppState.frames.find(f => f.id == subFrame.id);
-            if (!originalFrame) return;
+        // Esta es ahora una operación no destructiva que funciona para TODOS los tipos de frames.
+        animFrames.forEach(frame => {
+            const { w, h } = frame.rect;
 
-            const { x, y, w, h } = originalFrame.rect;
-            
-            // El nuevo rectángulo se centra en el centro del rectángulo antiguo.
-            const newX = x + (w / 2) - (targetW / 2);
-            const newY = y + (h / 2) - (targetH / 2);
+            // Calcular el offset para centrar el frame dentro de las dimensiones objetivo.
+            const offsetX = (targetW - w) / 2;
+            const offsetY = (targetH - h) / 2;
 
-            originalFrame.rect.x = Math.round(newX);
-            originalFrame.rect.y = Math.round(newY);
-            originalFrame.rect.w = targetW;
-            originalFrame.rect.h = targetH;
-
-            // Reseteamos el offset ya que el tamaño ahora está unificado y el "jitter" se ha eliminado.
-            delete AppState.subFrameOffsets[originalFrame.id];
+            // Almacenar el offset calculado. Se usará para la previsualización y exportación de la animación.
+            AppState.subFrameOffsets[frame.id] = { x: Math.round(offsetX), y: Math.round(offsetY) };
         });
 
-        this.closeFrameInspector(); // Cerrar el inspector para mostrar el lienzo principal.
-        this.updateAll(true); // Guardar el estado y actualizar toda la UI, incluida la previsualización.
-        
-        UIManager.showToast(`Dimensiones de frames unificadas a ${targetW}x${targetH}px.`, 'success');
+        HistoryManager.saveGlobalState(); // Guardar el nuevo estado en el historial.
+        this.updateAll(false); // Actualizar toda la UI.
+        this.closeFrameInspector(); // Cerrar el inspector para mostrar el resultado en el lienzo principal.
+        UIManager.showToast(`Tamaño de animación unificado a ${targetW}x${targetH}px (vía offsets).`, 'success');
     },
 
     alignFramesByOffset(alignMode = 'center') {
