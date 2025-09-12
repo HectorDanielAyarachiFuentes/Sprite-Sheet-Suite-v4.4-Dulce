@@ -87,6 +87,8 @@ export const DOM = {
     unifyWidthInput: document.getElementById('unify-width-input'),
     unifyHeightInput: document.getElementById('unify-height-input'),
     unifySizeButton: document.getElementById('unify-size-button'),
+    inspectorAddAllButton: document.getElementById('inspector-add-all-button'),
+    inspectorRemoveAllButton: document.getElementById('inspector-remove-all-button'),
     inspectorGrid: document.getElementById('inspector-grid'),
     // --- FIN ---
     loadingOverlay: document.getElementById('loading-overlay'),

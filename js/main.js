@@ -183,6 +183,8 @@ export const App = {
             }
         });
         DOM.unifySizeButton.addEventListener('click', () => this.unifyFrameSizes());
+        DOM.inspectorAddAllButton.addEventListener('click', () => this.inspectorAddAllToClip());
+        DOM.inspectorRemoveAllButton.addEventListener('click', () => this.inspectorRemoveAllFromClip());
         // --- FIN ---
         DOM.autoDetectButton.addEventListener('click', () => this.detectSprites());
         DOM.autoDetectToolButton.addEventListener('click', () => this.detectSprites());
@@ -498,6 +500,7 @@ export const App = {
         }
 
         DOM.inspectorGrid.innerHTML = ''; // Limpiar la vista anterior
+        const activeClip = AppState.getActiveClip();
 
         // Analizar tamaños para resaltar inconsistencias
         const sizes = allFrames.map(f => `${f.rect.w}x${f.rect.h}`);
@@ -511,6 +514,27 @@ export const App = {
             const card = document.createElement('div');
             card.className = 'inspector-card';
             card.dataset.subFrameId = frame.id; // Guardar ID para el evento de clic
+
+            // --- LÓGICA DE SELECCIÓN DE CLIP ---
+            const isInClip = activeClip?.frameIds.includes(frame.id);
+            if (isInClip) card.classList.add('is-in-clip');
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'frame-selector-checkbox';
+            checkbox.checked = isInClip;
+            checkbox.title = 'Añadir/Quitar del clip activo';
+            checkbox.addEventListener('change', () => {
+                if (!activeClip) return;
+                if (checkbox.checked) {
+                    if (!activeClip.frameIds.includes(frame.id)) activeClip.frameIds.push(frame.id);
+                } else {
+                    activeClip.frameIds = activeClip.frameIds.filter(id => id !== frame.id);
+                }
+                card.classList.toggle('is-in-clip', checkbox.checked);
+                this.updateAll(true); // Guardar y actualizar la lista de frames del panel derecho
+            });
+            card.appendChild(checkbox);
 
             const canvasContainer = document.createElement('div');
             canvasContainer.className = 'canvas-container';
@@ -540,18 +564,17 @@ export const App = {
             card.appendChild(dimensions);
             DOM.inspectorGrid.appendChild(card);
 
-            // --- LÓGICA DE CLIC PARA SELECCIONAR ---
-            card.addEventListener('click', () => {
+            // --- LÓGICA DE CLIC PARA NAVEGAR ---
+            canvasContainer.addEventListener('click', () => {
                 const subFrameId = card.dataset.subFrameId;
                 const parentFrameId = parseInt(subFrameId.split('_')[0], 10);
-                const subFrame = allFrames.find(f => f.id === subFrameId);
 
-                if (subFrame && AppState.frames.some(f => f.id === parentFrameId)) {
+                if (frame && AppState.frames.some(f => f.id === parentFrameId)) {
                     AppState.selectedFrameId = parentFrameId;
                     AppState.selectedSubFrameId = subFrameId;
                     this.closeFrameInspector();
                     this.updateAll(false); // Redibujar el lienzo principal con la nueva selección
-                    ZoomManager.zoomToRect(subFrame.rect); // Enfocar en el frame seleccionado
+                    ZoomManager.zoomToRect(frame.rect); // Enfocar en el frame seleccionado
                 }
             });
         });
@@ -563,6 +586,29 @@ export const App = {
     },
 
     closeFrameInspector() { DOM.frameInspectorPanel.classList.add('hidden'); },
+
+    inspectorAddAllToClip() {
+        const clip = AppState.getActiveClip();
+        if (!clip) { UIManager.showToast('No hay un clip activo seleccionado.', 'warning'); return; }
+
+        const allFrameIds = AppState.getFlattenedFrames().map(f => f.id);
+        const currentFrameIds = new Set(clip.frameIds);
+        allFrameIds.forEach(id => currentFrameIds.add(id));
+        clip.frameIds = Array.from(currentFrameIds);
+
+        this.openFrameInspector(); // Re-render inspector to show changes
+        this.updateAll(true);
+        UIManager.showToast(`Todos los frames añadidos a "${clip.name}".`, 'success');
+    },
+
+    inspectorRemoveAllFromClip() {
+        const clip = AppState.getActiveClip();
+        if (!clip) { UIManager.showToast('No hay un clip activo seleccionado.', 'warning'); return; }
+        clip.frameIds = [];
+        this.openFrameInspector(); // Re-render inspector
+        this.updateAll(true);
+        UIManager.showToast(`Todos los frames quitados de "${clip.name}".`, 'success');
+    },
 
     unifyFrameSizes() {
         const animFrames = AppState.getAnimationFrames();
