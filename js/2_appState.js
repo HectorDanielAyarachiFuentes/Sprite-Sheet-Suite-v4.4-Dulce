@@ -13,6 +13,8 @@ export const AppState = {
     isLocked: false,
     activeTool: 'select',
     zoomLevel: 1.0,
+    isSnapToGridEnabled: false,
+    gridSize: 16,
     animation: {
         isPlaying: false,
         fps: 12,

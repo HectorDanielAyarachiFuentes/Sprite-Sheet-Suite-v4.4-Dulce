@@ -10,12 +10,16 @@ import { App } from './main.js';
 
 export let InteractionState = {
     isDrawing: false, isDragging: false, isResizing: false, isDraggingSlice: false,
+    isActionPending: false, // Para el anti-jitter: indica que una acción (arrastrar, redimensionar) puede empezar
+    pendingAction: null, // 'drag', 'resize', 'dragSlice'
     startPos: { x: 0, y: 0 },
     newRect: null,
+    dragStartFrameRect: null, // Almacena el rect original al iniciar un arrastre
     resizeHandle: null,
     draggedSlice: null,
     HANDLE_SIZE: 8,
     SLICE_HANDLE_WIDTH: 6,
+    DRAG_THRESHOLD: 4, // Umbral en píxeles para iniciar un arrastre y evitar "jitter"
 };
 
 const getMousePos = (e) => {
@@ -25,6 +29,11 @@ const getMousePos = (e) => {
         y: (e.clientY - rect.top) / AppState.zoomLevel
     };
 };
+
+const snap = (value, gridSize) => {
+    if (!AppState.isSnapToGridEnabled || gridSize <= 0) return Math.round(value);
+    return Math.round(value / gridSize) * gridSize;
+}
 
 const getSubFrameAtPos = (pos) => {
     // Itera hacia atrás para obtener el frame superior
@@ -128,23 +137,27 @@ const InteractionController = (() => {
                 const sliceAtClick = getSliceAtPos(pos, frameAtClick);
                 
                 if (handleAtClick) {
-                    InteractionState.isResizing = true;
+                    InteractionState.isActionPending = true;
+                    InteractionState.pendingAction = 'resize';
                     InteractionState.resizeHandle = handleAtClick;
                     AppState.selectedSubFrameId = null; // Deseleccionar sub-frame al redimensionar
                     AppState.selectedSlice = null; // Al redimensionar, deseleccionamos cualquier línea
                 } else if (sliceAtClick) {
-                    // Si se hizo clic en una línea, la seleccionamos e iniciamos el arrastre.
+                    // Si se hizo clic en una línea, nos preparamos para arrastrarla.
+                    InteractionState.isActionPending = true;
+                    InteractionState.pendingAction = 'dragSlice';
                     AppState.selectedSlice = sliceAtClick;
                     AppState.selectedFrameId = frameAtClick.id;
-                    InteractionState.isDraggingSlice = true;
                     InteractionState.draggedSlice = sliceAtClick;
                 } else if (frameAtClick) {
-                    // Si no se hizo clic en una línea o handle, seleccionamos el frame
+                    // Si no se hizo clic en una línea o handle, nos preparamos para arrastrar el frame.
                     if (AppState.selectedFrameId !== frameAtClick.id) HistoryManager.resetLocal();
                     AppState.selectedFrameId = frameAtClick.id;
                     AppState.selectedSubFrameId = subFrameAtClick ? subFrameAtClick.id : null;
                     AppState.selectedSlice = null; // Deseleccionamos cualquier línea anterior
-                    InteractionState.isDragging = true;
+                    InteractionState.isActionPending = true;
+                    InteractionState.dragStartFrameRect = { ...frameAtClick.rect }; // Guardar rect original
+                    InteractionState.pendingAction = 'drag';
                 } else {
                     // Clic en el vacío
                     AppState.selectedFrameId = null;
@@ -176,6 +189,25 @@ const InteractionController = (() => {
     // Solo modificamos handleKeyDown.
     const handleMouseMove = (e) => {
          const pos = getMousePos(e);
+
+        // --- LÓGICA ANTI-JITTER ---
+        // Si hay una acción pendiente (ej. el usuario ha hecho clic pero no ha movido el ratón lo suficiente)...
+        if (InteractionState.isActionPending) {
+            const dx = pos.x - InteractionState.startPos.x;
+            const dy = pos.y - InteractionState.startPos.y;
+            // ...comprobamos si se ha superado el umbral de movimiento.
+            if (Math.sqrt(dx * dx + dy * dy) > InteractionState.DRAG_THRESHOLD) {
+                // Si se supera, iniciamos la acción real (arrastrar, redimensionar, etc.)
+                if (InteractionState.pendingAction === 'resize') InteractionState.isResizing = true;
+                if (InteractionState.pendingAction === 'dragSlice') InteractionState.isDraggingSlice = true;
+                if (InteractionState.pendingAction === 'drag') InteractionState.isDragging = true;
+                
+                // Y reseteamos los flags de acción pendiente.
+                InteractionState.isActionPending = false;
+                InteractionState.pendingAction = null;
+            }
+        }
+
         const frameAtPos = getFrameAtPos(pos);
         
         if (AppState.isLocked) { DOM.canvas.style.cursor = 'not-allowed'; } 
@@ -202,24 +234,28 @@ const InteractionController = (() => {
         if (InteractionState.isResizing && AppState.selectedFrameId !== null) {
             const frame = AppState.frames.find(f => f.id === AppState.selectedFrameId);
             if (frame) {
+                const snappedPos = { x: snap(pos.x, AppState.gridSize), y: snap(pos.y, AppState.gridSize) };
                 let { x, y, w, h } = frame.rect;
                 const ox2 = x + w, oy2 = y + h;
-                if (InteractionState.resizeHandle.includes('l')) x = pos.x;
-                if (InteractionState.resizeHandle.includes('t')) y = pos.y;
-                if (InteractionState.resizeHandle.includes('r')) w = pos.x - x;
-                if (InteractionState.resizeHandle.includes('b')) h = pos.y - y;
+                if (InteractionState.resizeHandle.includes('l')) x = snappedPos.x;
+                if (InteractionState.resizeHandle.includes('t')) y = snappedPos.y;
+                if (InteractionState.resizeHandle.includes('r')) w = snappedPos.x - x;
+                if (InteractionState.resizeHandle.includes('b')) h = snappedPos.y - y;
                 if (InteractionState.resizeHandle.includes('l')) w = ox2 - x;
                 if (InteractionState.resizeHandle.includes('t')) h = oy2 - y;
                 frame.rect = { x, y, w, h };
             }
         } else if (InteractionState.isDragging && AppState.selectedFrameId !== null) {
             const frame = AppState.frames.find(f => f.id === AppState.selectedFrameId);
-            if (frame) {
+            if (frame && InteractionState.dragStartFrameRect) {
                 const dx = pos.x - InteractionState.startPos.x;
                 const dy = pos.y - InteractionState.startPos.y;
-                frame.rect.x += dx;
-                frame.rect.y += dy;
-                InteractionState.startPos = pos;
+                
+                const newX = InteractionState.dragStartFrameRect.x + dx;
+                const newY = InteractionState.dragStartFrameRect.y + dy;
+
+                frame.rect.x = snap(newX, AppState.gridSize);
+                frame.rect.y = snap(newY, AppState.gridSize);
             }
         } else if (InteractionState.isDraggingSlice && AppState.selectedFrameId !== null) {
             const frame = AppState.frames.find(f => f.id === AppState.selectedFrameId);
@@ -262,8 +298,10 @@ const InteractionController = (() => {
             }
         }
         
+        // Resetear todos los estados de interacción
         InteractionState.isDrawing = InteractionState.isDragging = InteractionState.isResizing = InteractionState.isDraggingSlice = false;
-        InteractionState.newRect = InteractionState.resizeHandle = InteractionState.draggedSlice = null;
+        InteractionState.isActionPending = false; InteractionState.pendingAction = null;
+        InteractionState.newRect = InteractionState.resizeHandle = InteractionState.draggedSlice = InteractionState.dragStartFrameRect = null;
         
         App.updateAll(stateChanged);
     };
@@ -322,6 +360,11 @@ const InteractionController = (() => {
         if (e.key.toLowerCase() === 'b') { e.preventDefault(); App.removeBackground(); }
         if (e.key.toLowerCase() === 'e') { e.preventDefault(); App.setActiveTool('eraser'); }
         if (e.key.toLowerCase() === 'l') { e.preventDefault(); App.toggleLock(); }
+        if (e.key.toLowerCase() === 'g') { 
+            e.preventDefault(); 
+            DOM.snapToGridCheckbox.checked = !DOM.snapToGridCheckbox.checked;
+            DOM.snapToGridCheckbox.dispatchEvent(new Event('change'));
+        }
     };
     
     return {

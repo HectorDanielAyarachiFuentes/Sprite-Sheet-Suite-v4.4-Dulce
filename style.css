@@ -76,6 +76,24 @@ p { margin: 0; }
     text-align: center;
 }
 
+.snap-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: var(--ps-bg-dark);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--ps-border-dark);
+}
+.snap-controls label {
+    color: var(--ps-text-medium);
+    font-size: 11px;
+    cursor: pointer;
+}
+.snap-controls input[type="number"] { width: 40px; padding: 2px 4px; font-size: 11px; }
+.snap-controls input[type="checkbox"] { margin: 0; cursor: pointer; }
+
+
 /* --- Left Toolbar --- */
 .left-toolbar {
     background: var(--ps-bg-panel);

@@ -151,6 +151,19 @@ export const App = {
         DOM.undoButton.addEventListener('click', () => HistoryManager.undo());
         DOM.redoButton.addEventListener('click', () => HistoryManager.redo());
 
+        DOM.snapToGridCheckbox.addEventListener('change', (e) => {
+            AppState.isSnapToGridEnabled = e.target.checked;
+            CanvasView.drawAll(); // Redraw to show/hide grid
+        });
+        DOM.gridSizeInput.addEventListener('change', (e) => {
+            const size = parseInt(e.target.value, 10);
+            if (size > 0) {
+                AppState.gridSize = size;
+                if (AppState.isSnapToGridEnabled) CanvasView.drawAll();
+            }
+        });
+
+
         // Listeners para los nuevos inputs de offset
         [DOM.subframeOffsetXInput, DOM.subframeOffsetYInput].forEach(input => {
             input.addEventListener('change', () => {

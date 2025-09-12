@@ -8,9 +8,34 @@ import { InteractionState, getResizeHandles } from './6_interactionController.js
 const CanvasView = (() => {
     const HANDLE_SIZE = 8;
     
+    const drawGrid = () => {
+        if (!AppState.isSnapToGridEnabled || AppState.gridSize <= 0) return;
+
+        const { width, height } = DOM.canvas;
+        const gridSize = AppState.gridSize;
+        const zoom = AppState.zoomLevel;
+
+        CTX.main.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        CTX.main.lineWidth = 1 / zoom;
+        CTX.main.beginPath();
+
+        for (let x = 0; x <= width; x += gridSize) {
+            CTX.main.moveTo(x, 0);
+            CTX.main.lineTo(x, height);
+        }
+
+        for (let y = 0; y <= height; y += gridSize) {
+            CTX.main.moveTo(0, y);
+            CTX.main.lineTo(width, y);
+        }
+        CTX.main.stroke();
+    };
+
     return {
         drawAll() {
             CTX.main.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+            drawGrid(); // Dibujar la cuadrícula primero
+
             const activeClip = AppState.getActiveClip();
             const allSubFrames = AppState.getFlattenedFrames();
 

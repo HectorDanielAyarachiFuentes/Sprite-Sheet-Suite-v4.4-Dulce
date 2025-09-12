@@ -76,6 +76,8 @@ export const DOM = {
     subframeIdDisplay: document.getElementById('subframe-id-display'),
     subframeOffsetXInput: document.getElementById('subframe-offset-x'),
     subframeOffsetYInput: document.getElementById('subframe-offset-y'),
+    snapToGridCheckbox: document.getElementById('snap-to-grid-checkbox'),
+    gridSizeInput: document.getElementById('grid-size-input'),
     loadingOverlay: document.getElementById('loading-overlay'),
     allControls: document.querySelectorAll('button, input, select'),
 };
