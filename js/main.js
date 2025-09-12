@@ -185,6 +185,10 @@ export const App = {
         DOM.unifySizeButton.addEventListener('click', () => this.unifyFrameSizes());
         DOM.inspectorAddAllButton.addEventListener('click', () => this.inspectorAddAllToClip());
         DOM.inspectorRemoveAllButton.addEventListener('click', () => this.inspectorRemoveAllFromClip());
+        DOM.useRecommendedSizeBtn.addEventListener('click', () => {
+            DOM.unifyWidthInput.value = DOM.useRecommendedSizeBtn.dataset.w;
+            DOM.unifyHeightInput.value = DOM.useRecommendedSizeBtn.dataset.h;
+        });
         // --- FIN ---
         DOM.autoDetectButton.addEventListener('click', () => this.detectSprites());
         DOM.autoDetectToolButton.addEventListener('click', () => this.detectSprites());
@@ -583,6 +587,20 @@ export const App = {
         DOM.alignGrid.style.opacity = canAlign ? '1' : '0.5';
         DOM.alignGrid.style.pointerEvents = canAlign ? 'auto' : 'none';
         DOM.frameInspectorPanel.classList.remove('hidden');
+
+        // --- NUEVO: Lógica para mostrar el tamaño recomendado ---
+        const animFrames = AppState.getAnimationFrames();
+        if (animFrames.length > 0) {
+            const maxWidth = Math.max(...animFrames.map(f => f.rect.w));
+            const maxHeight = Math.max(...animFrames.map(f => f.rect.h));
+            
+            DOM.recommendedSizeText.textContent = `${maxWidth} x ${maxHeight}px`;
+            DOM.useRecommendedSizeBtn.dataset.w = maxWidth;
+            DOM.useRecommendedSizeBtn.dataset.h = maxHeight;
+            DOM.unifySizeRecommendation.style.display = 'flex';
+        } else {
+            DOM.unifySizeRecommendation.style.display = 'none';
+        }
     },
 
     closeFrameInspector() { DOM.frameInspectorPanel.classList.add('hidden'); },

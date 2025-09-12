@@ -391,13 +391,17 @@
             </div>
             <div class="separator"></div>
             <div class="size-unification-controls">
-                <p class="help-text destructive-warning"><b>Unificar Tamaño (Destructivo):</b> Modifica el tamaño de los frames en el clip. Esta acción no se puede deshacer fácilmente.</p>
+                <p class="help-text"><b>Unificar Tamaño de Animación (No Destructivo):</b> Ajusta los offsets de los frames en el clip para que todos ocupen un lienzo del mismo tamaño.</p>
+                <div id="unify-size-recommendation" class="recommendation-box" style="display: none;">
+                    <p>Recomendación (tamaño máximo): <strong id="recommended-size-text"></strong></p>
+                    <button id="use-recommended-size-btn">Usar</button>
+                </div>
                 <div class="input-group">
                     <label>Ancho:</label><input type="number" id="unify-width-input" min="1" placeholder="auto">
                     <label>Alto:</label><input type="number" id="unify-height-input" min="1" placeholder="auto">
                     <button id="unify-size-button">Aplicar a Todos</button>
                 </div>
-                <p class="help-text">Deja los campos en blanco para unificar al tamaño del frame más grande del clip.</p>
+                <p class="help-text">Deja los campos en blanco para usar el tamaño máximo del clip.</p>
             </div>
         </div>
         <div id="inspector-grid" class="inspector-grid">

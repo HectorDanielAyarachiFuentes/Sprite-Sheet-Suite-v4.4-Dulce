@@ -578,6 +578,23 @@ select { width: 100%; flex-grow: 1; }
     align-content: start;
 }
 
+.recommendation-box {
+    background-color: rgba(122, 162, 247, 0.1); /* --primary con alfa */
+    border: 1px solid var(--ps-accent-blue);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+}
+.recommendation-box p { margin: 0; color: var(--ps-text-light); }
+.recommendation-box button {
+    padding: 2px 10px; font-size: 11px; background-color: var(--ps-accent-blue);
+    color: white; border: none; flex-shrink: 0; margin-left: 10px;
+}
+
 .inspector-card {
     background-color: var(--ps-bg-panel);
     border: 1px solid var(--ps-border-dark);
