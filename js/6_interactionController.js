@@ -26,6 +26,14 @@ const getMousePos = (e) => {
     };
 };
 
+const getSubFrameAtPos = (pos) => {
+    // Itera hacia atrás para obtener el frame superior
+    return AppState.getFlattenedFrames().slice().reverse().find(f => 
+        pos.x >= f.rect.x && pos.x <= f.rect.x + f.rect.w && 
+        pos.y >= f.rect.y && pos.y <= f.rect.y + f.rect.h
+    );
+};
+
 const getFrameAtPos = (pos) => AppState.frames.slice().reverse().find(f => pos.x >= f.rect.x && pos.x <= f.rect.x + f.rect.w && pos.y >= f.rect.y && pos.y <= f.rect.y + f.rect.h);
 
 export const getResizeHandles = (rect) => {
@@ -80,6 +88,7 @@ const InteractionController = (() => {
         const pos = getMousePos(e);
         InteractionState.startPos = pos;
         const frameAtClick = getFrameAtPos(pos);
+        const subFrameAtClick = getSubFrameAtPos(pos);
 
         // --- LÓGICA DE SELECCIÓN MEJORADA ---
         if (frameAtClick) {
@@ -123,6 +132,7 @@ const InteractionController = (() => {
                 if (AppState.isLocked) {
                     UIManager.showToast('Frames bloqueados. Desbloquéalos para mover/redimensionar (L).', 'warning');
                     AppState.selectedFrameId = frameAtClick ? frameAtClick.id : null;
+                    AppState.selectedSubFrameId = subFrameAtClick ? subFrameAtClick.id : null;
                     AppState.selectedSlice = null; // Deseleccionar slice si los frames están bloqueados
                     App.updateAll(false);
                     return;
@@ -132,17 +142,20 @@ const InteractionController = (() => {
                 
                 if (InteractionState.resizeHandle) {
                     InteractionState.isResizing = true;
+                    AppState.selectedSubFrameId = null; // Deseleccionar sub-frame al redimensionar
                     AppState.selectedSlice = null; // Al redimensionar, deseleccionamos cualquier línea
                 } else if (frameAtClick) {
                     // Si no se hizo clic en una línea, seleccionamos el frame
                     if (AppState.selectedFrameId !== frameAtClick.id) HistoryManager.resetLocal();
                     AppState.selectedFrameId = frameAtClick.id;
+                    AppState.selectedSubFrameId = subFrameAtClick ? subFrameAtClick.id : null;
                     AppState.selectedSlice = null; // Deseleccionamos cualquier línea anterior
                     HistoryManager.setLocalFrameId(AppState.selectedFrameId);
                     InteractionState.isDragging = true;
                 } else {
                     // Clic en el vacío
                     AppState.selectedFrameId = null;
+                    AppState.selectedSubFrameId = null;
                     AppState.selectedSlice = null;
                 }
                 break;

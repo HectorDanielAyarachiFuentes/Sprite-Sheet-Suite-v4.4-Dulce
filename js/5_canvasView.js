@@ -64,13 +64,24 @@ const CanvasView = (() => {
 
             allSubFrames.forEach(subFrame => {
                 const isIncluded = activeClip?.frameIds.includes(subFrame.id);
-                CTX.main.fillStyle = isIncluded ? 'rgba(122, 162, 247, 0.15)' : 'rgba(30,30,45,0.4)';
-                CTX.main.fillRect(subFrame.rect.x, subFrame.rect.y, subFrame.rect.w, subFrame.rect.h);
+                const isSelected = AppState.selectedSubFrameId === subFrame.id;
+
+                if (isSelected) {
+                    CTX.main.fillStyle = 'rgba(255, 236, 179, 0.4)'; // Amarillo para resaltar
+                    CTX.main.strokeStyle = 'var(--warning)';
+                    CTX.main.lineWidth = 2 / AppState.zoomLevel;
+                    CTX.main.fillRect(subFrame.rect.x, subFrame.rect.y, subFrame.rect.w, subFrame.rect.h);
+                    CTX.main.strokeRect(subFrame.rect.x, subFrame.rect.y, subFrame.rect.w, subFrame.rect.h);
+                } else {
+                    CTX.main.fillStyle = isIncluded ? 'rgba(122, 162, 247, 0.15)' : 'rgba(30,30,45,0.4)';
+                    CTX.main.fillRect(subFrame.rect.x, subFrame.rect.y, subFrame.rect.w, subFrame.rect.h);
+                }
 
                 if (subFrame.rect.w > 8 && subFrame.rect.h > 8) {
-                    CTX.main.fillStyle = isIncluded ? 'rgba(255,255,255,0.8)' : 'rgba(169,177,214,0.6)';
+                    CTX.main.fillStyle = isSelected ? 'var(--warning)' : (isIncluded ? 'rgba(255,255,255,0.8)' : 'rgba(169,177,214,0.6)');
                     CTX.main.font = `${12 / AppState.zoomLevel}px var(--font-sans)`;
-                    CTX.main.fillText(subFrame.id, subFrame.rect.x + (4 / AppState.zoomLevel), subFrame.rect.y + (14 / AppState.zoomLevel));
+                    const idText = typeof subFrame.id === 'string' ? subFrame.id.split('_')[0] : subFrame.id;
+                    CTX.main.fillText(`F${idText}`, subFrame.rect.x + (4 / AppState.zoomLevel), subFrame.rect.y + (14 / AppState.zoomLevel));
                 }
             });
 

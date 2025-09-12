@@ -150,6 +150,22 @@ export const App = {
         DOM.undoButton.addEventListener('click', () => HistoryManager.undo());
         DOM.redoButton.addEventListener('click', () => HistoryManager.redo());
 
+        // Listeners para los nuevos inputs de offset
+        [DOM.subframeOffsetXInput, DOM.subframeOffsetYInput].forEach(input => {
+            input.addEventListener('change', () => {
+                const subFrameId = AppState.selectedSubFrameId;
+                if (!subFrameId) return;
+
+                const newOffsetX = parseInt(DOM.subframeOffsetXInput.value, 10) || 0;
+                const newOffsetY = parseInt(DOM.subframeOffsetYInput.value, 10) || 0;
+
+                AppState.subFrameOffsets[subFrameId] = { x: newOffsetX, y: newOffsetY };
+                
+                SessionManager.saveCurrent(); // Guardar el estado en la sesión
+                this.updateAll(false); // Redibujar todo para ver cambios en la previsualización
+            });
+        });
+
         // --- CORRECCIÓN --- El listener ahora llama a la nueva función y luego actualiza.
         DOM.newClipButton.addEventListener('click', () => {
             const newName = prompt("Nombre del nuevo clip:", `Clip ${AppState.clips.length + 1}`);
@@ -183,7 +199,7 @@ export const App = {
             if (e.target.matches('[data-frame-id]')) {
                 const clip = AppState.getActiveClip();
                 if (!clip) return;
-                const id = parseInt(e.target.dataset.frameId);
+                const id = e.target.dataset.frameId; // ID ahora es un string
                 if (e.target.checked) { if (!clip.frameIds.includes(id)) clip.frameIds.push(id); } 
                 else { clip.frameIds = clip.frameIds.filter(fid => fid !== id); }
                 this.updateAll(false); SessionManager.saveCurrent();
@@ -200,6 +216,7 @@ export const App = {
         AppState.frames = state.frames;
         AppState.clips = state.clips;
         AppState.activeClipId = state.activeClipId;
+        AppState.subFrameOffsets = state.subFrameOffsets || {};
         AppState.selectedSlice = null; // Reiniciar slice al cargar
         HistoryManager.setHistoryState(state);
         DOM.imageDisplay.src = state.imageSrc;
@@ -223,7 +240,13 @@ export const App = {
     },
 
     clearAll(isInitial = false) {
-        AppState.frames = []; AppState.clips = []; AppState.activeClipId = null; AppState.selectedFrameId = null; AppState.selectedSlice = null;
+        AppState.frames = []; 
+        AppState.clips = []; 
+        AppState.activeClipId = null; 
+        AppState.selectedFrameId = null; 
+        AppState.selectedSubFrameId = null;
+        AppState.subFrameOffsets = {};
+        AppState.selectedSlice = null;
         if (!isInitial) this.updateAll(true);
     },
 

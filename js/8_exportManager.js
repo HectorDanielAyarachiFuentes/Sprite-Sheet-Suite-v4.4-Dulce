@@ -8,7 +8,19 @@ import { UIManager } from './4_uiManager.js';
 const ExportManager = (() => {
 
     const generateCssAnimationCode = (animFrames, scale) => {
-        const firstFrame = animFrames[0].rect;
+        if (animFrames.length === 0) return { htmlCode: '', cssCode: '' };
+
+        // --- LÓGICA DE TAMAÑO DE ESCENARIO MEJORADA ---
+        // 1. Calcular el bounding box de toda la animación para definir el tamaño del escenario.
+        const animBBox = {
+            minX: Math.min(...animFrames.map(f => -f.offset.x)),
+            minY: Math.min(...animFrames.map(f => -f.offset.y)),
+            maxX: Math.max(...animFrames.map(f => -f.offset.x + f.rect.w)),
+            maxY: Math.max(...animFrames.map(f => -f.offset.y + f.rect.h)),
+        };
+        const stageW = Math.round(animBBox.maxX - animBBox.minX);
+        const stageH = Math.round(animBBox.maxY - animBBox.minY);
+
         const frameCount = animFrames.length;
         const duration = ((1 / AppState.animation.fps) * frameCount).toFixed(2);
 
@@ -30,8 +42,18 @@ const ExportManager = (() => {
         let keyframesSteps = animFrames.map((frame, index) => {
             const { x, y, w, h } = frame.rect;
             const percentage = (index / frameCount) * 100;
-            return `    ${percentage.toFixed(2)}% { width: ${w}px; height: ${h}px; background-position: -${x}px -${y}px; }`;
+            // 2. Calcular la traslación relativa al bounding box de la animación.
+            const translateX = Math.round(-frame.offset.x - animBBox.minX);
+            const translateY = Math.round(-frame.offset.y - animBBox.minY);
+            return `    ${percentage.toFixed(2)}% { width: ${w}px; height: ${h}px; background-position: -${x}px -${y}px; transform: translate(${translateX}px, ${translateY}px); }`;
         }).join('\n');
+
+        // --- CORRECCIÓN ---
+        // El keyframe del 100% debe ser una copia del último frame para que se mantenga hasta el final,
+        // antes de que la animación se reinicie en el primer frame.
+        const lastFrame = animFrames[animFrames.length - 1];
+        const lastTranslateX = Math.round(-lastFrame.offset.x - animBBox.minX);
+        const lastTranslateY = Math.round(-lastFrame.offset.y - animBBox.minY);
 
         const cssCode = `/* Estilos para la página de demostración */
 body {
@@ -48,30 +70,42 @@ body {
     background-color: #1a252f;
     border-radius: 8px;
     border: 2px solid #55687a;
+    /* Escala el escenario para verlo mejor */
+    transform: scale(${scale});
+    transform-origin: center center;
 }
 
-/* El sprite con la animación */
+/* El sprite es un contenedor del tamaño del escenario */
 .sprite {
-    width: ${firstFrame.w}px;
-    height: ${firstFrame.h}px;
+    width: ${stageW}px;
+    height: ${stageH}px;
+    position: relative;
+    overflow: hidden; /* Para que los frames no se salgan del escenario */
+}
+
+/* Usamos un pseudo-elemento para el sprite real, para poder posicionarlo */
+.sprite::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: ${animFrames[0].rect.w}px;
+    height: ${animFrames[0].rect.h}px;
     background-image: url('${AppState.currentFileName}');
+    background-repeat: no-repeat; /* <-- CORRECCIÓN CRÍTICA */
     
     /* Mantiene los píxeles nítidos */
     image-rendering: pixelated;
     image-rendering: crisp-edges;
 
-    /* Escala el sprite para verlo mejor */
-    transform: scale(${scale});
-    transform-origin: bottom center;
-
     /* Aplicación de la animación */
-    animation: play ${duration}s steps(1) infinite;
+    animation: play ${duration}s steps(1, end) infinite;
 }
 
 /* Definición de los pasos de la animación */
 @keyframes play {
 ${keyframesSteps}
-    100% { width: ${firstFrame.w}px; height: ${firstFrame.h}px; background-position: -${firstFrame.x}px -${firstFrame.y}px; }
+    100% { width: ${lastFrame.rect.w}px; height: ${lastFrame.rect.h}px; background-position: -${lastFrame.rect.x}px -${lastFrame.rect.y}px; transform: translate(${lastTranslateX}px, ${lastTranslateY}px); }
 }`;
 
         return { htmlCode, cssCode };

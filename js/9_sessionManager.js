@@ -25,6 +25,7 @@ const SessionManager = (() => {
                 frames: AppState.frames,
                 clips: AppState.clips,
                 activeClipId: AppState.activeClipId,
+                subFrameOffsets: AppState.subFrameOffsets,
                 ...HistoryManager.getHistoryState()
             };
             localStorage.setItem('spriteSheetLastSession', JSON.stringify(state));
@@ -69,6 +70,7 @@ const SessionManager = (() => {
                 frames: AppState.frames,
                 clips: AppState.clips,
                 activeClipId: AppState.activeClipId,
+                subFrameOffsets: AppState.subFrameOffsets,
                 ...HistoryManager.getHistoryState()
             };
             localStorage.setItem(`history_${id}`, JSON.stringify(fullState));

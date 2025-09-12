@@ -66,6 +66,10 @@ export const DOM = {
     zoomInButton: document.getElementById('zoom-in-button'),
     zoomFitButton: document.getElementById('zoom-fit-button'),
     zoomDisplay: document.getElementById('zoom-display'),
+    subframePropsPanel: document.getElementById('subframe-props-panel'),
+    subframeIdDisplay: document.getElementById('subframe-id-display'),
+    subframeOffsetXInput: document.getElementById('subframe-offset-x'),
+    subframeOffsetYInput: document.getElementById('subframe-offset-y'),
     loadingOverlay: document.getElementById('loading-overlay'),
     allControls: document.querySelectorAll('button, input, select'),
 };

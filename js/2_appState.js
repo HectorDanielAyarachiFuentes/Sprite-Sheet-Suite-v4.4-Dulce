@@ -6,6 +6,8 @@ export const AppState = {
     clips: [],
     activeClipId: null,
     selectedFrameId: null,
+    selectedSubFrameId: null,
+    subFrameOffsets: {},
     selectedSlice: null, // --- AÑADIDO --- Para recordar la línea (slice) seleccionada.
     currentFileName: "spritesheet.png",
     isLocked: false,
@@ -34,7 +36,6 @@ export const AppState = {
 
     getFlattenedFrames() {
         const flattened = [];
-        let subFrameId = 0;
         this.frames.forEach(frame => {
             if (frame.type === 'group') {
                 const yCoords = [0, ...frame.hSlices.sort((a, b) => a - b), frame.rect.h];
@@ -58,21 +59,28 @@ export const AppState = {
                         const cellW = uniqueSortedX[j + 1] - cellX;
                         if (cellW <= 0) continue;
 
+                        const subFrameId = `${frame.id}_${i}_${j}`;
                         flattened.push({
-                            id: subFrameId++,
+                            id: subFrameId,
                             name: `${frame.name}_${i}_${j}`,
                             rect: {
                                 x: Math.round(frame.rect.x + cellX),
                                 y: Math.round(frame.rect.y + rowY),
                                 w: Math.round(cellW),
                                 h: Math.round(rowH)
-                            }
+                            },
+                            offset: this.subFrameOffsets[subFrameId] || { x: 0, y: 0 }
                         });
                     }
                 }
             } else {
-                flattened.push({ ...frame,
-                    id: subFrameId++
+                const subFrameId = `${frame.id}`;
+                flattened.push({
+                    id: subFrameId,
+                    name: frame.name,
+                    rect: frame.rect,
+                    type: frame.type,
+                    offset: this.subFrameOffsets[subFrameId] || { x: 0, y: 0 }
                 });
             }
         });

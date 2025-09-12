@@ -88,21 +88,36 @@ const UIManager = (() => {
             const format = DOM.jsonFormatSelect.value;
             let out;
             const framesData = AppState.getFlattenedFrames();
+            // --- CORRECCIÓN: Se actualiza la versión en los metadatos ---
             const meta = {
-                app: "Sprite Sheet Suite v4.3",
+                app: "Sprite Sheet Suite v4.4",
                 image: AppState.currentFileName,
                 size: { w: DOM.canvas.width, h: DOM.canvas.height },
                 clips: AppState.clips.map(c => ({ name: c.name, frames: c.frameIds }))
             };
             switch (format) {
                 case 'phaser3':
-                    out = { frames: framesData.reduce((acc, f) => { acc[f.name] = { frame: f.rect, spriteSourceSize: { x: 0, y: 0, ...f.rect }, sourceSize: f.rect }; return acc; }, {}), meta };
+                    // --- CORRECCIÓN: Se añade el 'pivot' para los offsets y se corrige la estructura ---
+                    out = { frames: framesData.reduce((acc, f) => { 
+                        acc[f.name] = { 
+                            frame: f.rect, 
+                            spriteSourceSize: { x: 0, y: 0, w: f.rect.w, h: f.rect.h }, 
+                            sourceSize: { w: f.rect.w, h: f.rect.h },
+                            pivot: { x: f.offset.x / f.rect.w, y: f.offset.y / f.rect.h }
+                        }; 
+                        return acc; 
+                    }, {}), meta };
                     break;
                 case 'godot':
-                     out = { frames: framesData.reduce((acc, f) => { acc[f.name] = { frame: f.rect, source_size: { w: f.rect.w, h: f.rect.h }, sprite_source_size: { x: 0, y: 0, ...f.rect } }; return acc; }, {}), meta };
+                    // --- CORRECCIÓN: Se simplifica y se añade el 'offset' directamente ---
+                     out = { frames: framesData.reduce((acc, f) => { 
+                         acc[f.name] = { frame: f.rect, offset: f.offset }; 
+                         return acc; 
+                    }, {}), meta };
                     break;
                 default:
-                    out = { meta, frames: framesData };
+                    // --- MEJORA: Se limpia el formato por defecto ---
+                    out = { meta, frames: framesData.map(f => ({ name: f.name, rect: f.rect, offset: f.offset })) };
                     break;
             }
             const jsonString = JSON.stringify(out, null, 2);
@@ -113,9 +128,29 @@ const UIManager = (() => {
             this.updateClipsSelect();
             this.updateFramesList();
             this.updateJsonOutput();
+        this.updateSubFramePanel();
             HistoryManager.updateButtons();
+    },
+    updateSubFramePanel() {
+        const subFrameId = AppState.selectedSubFrameId;
+        if (!subFrameId) {
+            DOM.subframePropsPanel.hidden = true;
+            return;
         }
-    };
+
+        const subFrame = AppState.getFlattenedFrames().find(f => f.id === subFrameId);
+        if (!subFrame) {
+            DOM.subframePropsPanel.hidden = true;
+            return;
+        }
+
+        DOM.subframePropsPanel.hidden = false;
+        DOM.subframePropsPanel.open = true;
+        DOM.subframeIdDisplay.textContent = `Editando: ${subFrame.name}`;
+        DOM.subframeOffsetXInput.value = subFrame.offset.x;
+        DOM.subframeOffsetYInput.value = subFrame.offset.y;
+        }
+};
 })();
 
 export { UIManager };

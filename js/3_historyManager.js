@@ -28,7 +28,9 @@ const HistoryManager = (() => {
         AppState.frames = state.frames;
         AppState.clips = state.clips;
         AppState.activeClipId = state.activeClipId;
+        AppState.subFrameOffsets = state.subFrameOffsets || {};
         AppState.selectedFrameId = null;
+        AppState.selectedSubFrameId = null;
         localHistoryStack = [];
         localHistoryIndex = -1;
         localHistoryFrameId = null;
@@ -43,7 +45,8 @@ const HistoryManager = (() => {
             historyStack.push(JSON.stringify({
                 frames: AppState.frames,
                 clips: AppState.clips,
-                activeClipId: AppState.activeClipId
+                activeClipId: AppState.activeClipId,
+                subFrameOffsets: AppState.subFrameOffsets
             }));
             historyIndex++;
             localHistoryStack = [];
