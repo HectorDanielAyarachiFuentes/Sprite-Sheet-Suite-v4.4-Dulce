@@ -198,42 +198,80 @@ ${keyframesSteps}
             try {
                 const isTransparent = DOM.gifTransparentBg.checked;
                 const bgColor = DOM.gifBgColor.value;
+                const maxSize = parseInt(DOM.maxGifSizeInput.value) || 128;
+
+                // --- LÓGICA DE CÁLCULO DE TAMAÑO MEJORADA ---
+                // 1. Calcular el bounding box de toda la animación para un tamaño consistente.
+                const animBBox = {
+                    minX: Math.min(...animFrames.map(f => -f.offset.x)),
+                    minY: Math.min(...animFrames.map(f => -f.offset.y)),
+                    maxX: Math.max(...animFrames.map(f => -f.offset.x + f.rect.w)),
+                    maxY: Math.max(...animFrames.map(f => -f.offset.y + f.rect.h)),
+                };
+                const animWidth = animBBox.maxX - animBBox.minX;
+                const animHeight = animBBox.maxY - animBBox.minY;
+
+                // 2. Calcular la escala y las dimensiones finales del GIF para que quepa en maxSize.
+                const scale = Math.min(1, maxSize / animWidth, maxSize / animHeight);
+                const gifWidth = Math.round(animWidth * scale);
+                const gifHeight = Math.round(animHeight * scale);
 
                 const gifOptions = {
                     workers: 2,
                     quality: 10,
                     workerScript: 'js/gif.worker.js',
-                    // Usamos un color clave (magenta) que gif.js convertirá en transparente, o null si no hay transparencia.
-                    transparent: isTransparent ? 0xFF00FF : null
+                    transparent: isTransparent ? 0xFF00FF : null,
+                    width: gifWidth,
+                    height: gifHeight
                 };
 
                 const gif = new GIF(gifOptions);
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
-                const maxSize = parseInt(DOM.maxGifSizeInput.value) || 128;
+                tempCanvas.width = gifWidth;
+                tempCanvas.height = gifHeight;
+
+                // Para un look pixel-perfect, deshabilitamos el suavizado.
+                tempCtx.imageSmoothingEnabled = false;
 
                 animFrames.forEach(frame => {
                     const { x, y, w, h } = frame.rect;
-                    let dW = w, dH = h;
-                    if (w > maxSize || h > maxSize) {
-                        if (w > h) { dW = maxSize; dH = (h / w) * maxSize; } 
-                        else { dH = maxSize; dW = (w / h) * maxSize; }
+
+                    // 1. Preparar el fondo del canvas para este frame.
+                    if (isTransparent) {
+                        // Limpiar el canvas para que el fondo sea transparente antes de dibujar el sprite.
+                        tempCtx.clearRect(0, 0, gifWidth, gifHeight);
+                    } else {
+                        // Rellenar con el color de fondo elegido para aplanar la transparencia del PNG.
+                        tempCtx.fillStyle = bgColor;
+                        tempCtx.fillRect(0, 0, gifWidth, gifHeight);
                     }
-                    tempCanvas.width = Math.round(dW);
-                    tempCanvas.height = Math.round(dH);
+
+                    // 2. Calcular la posición y tamaño del sprite DENTRO del canvas del GIF.
+                    const drawW = w * scale;
+                    const drawH = h * scale;
+                    const drawX = (-frame.offset.x - animBBox.minX) * scale;
+                    const drawY = (-frame.offset.y - animBBox.minY) * scale;
+
+                    // 3. Dibujar el sprite en el canvas.
+                    tempCtx.drawImage(DOM.imageDisplay, x, y, w, h, drawX, drawY, drawW, drawH);
 
                     if (isTransparent) {
-                        // Rellenamos el fondo con el color clave (magenta) para que gif.js lo haga transparente.
-                        tempCtx.fillStyle = '#FF00FF';
-                        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    } else {
-                        // Rellenamos el fondo con el color elegido. Esto "aplana" la transparencia del PNG.
-                        tempCtx.fillStyle = bgColor;
-                        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    }
+                        // 4. Para transparencia, procesar píxeles para evitar el contorno magenta.
+                        const imageData = tempCtx.getImageData(0, 0, gifWidth, gifHeight);
+                        const data = imageData.data;
+                        const alphaThreshold = 10; // Umbral de alfa para considerar un píxel como transparente.
 
-                    tempCtx.drawImage(DOM.imageDisplay, x, y, w, h, 0, 0, tempCanvas.width, tempCanvas.height);
-                    gif.addFrame(tempCanvas, { copy: true, delay: 1000 / AppState.animation.fps });
+                        for (let i = 0; i < data.length; i += 4) {
+                            if (data[i + 3] < alphaThreshold) {
+                                data[i] = 255; data[i + 1] = 0; data[i + 2] = 255;
+                            }
+                        }
+                        gif.addFrame(imageData, { copy: true, delay: 1000 / AppState.animation.fps });
+                    } else {
+                        // 4. Si tiene fondo sólido, el canvas ya está listo para ser añadido.
+                        gif.addFrame(tempCanvas, { copy: true, delay: 1000 / AppState.animation.fps });
+                    }
                 });
 
                 gif.on('finished', (blob) => {
