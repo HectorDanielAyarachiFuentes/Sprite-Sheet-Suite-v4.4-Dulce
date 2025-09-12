@@ -114,6 +114,12 @@ export const App = {
                 this.updateAll(true); // Redraw and save state with new image
                 SessionManager.addToHistory(); // Update history thumbnail with the new image
                 const message = this.modificationMessage || 'Imagen modificada con éxito.';
+                // After trimming, ask the user if they want to export everything.
+                if (this.modificationMessage && this.modificationMessage.includes('recortada')) {
+                    if (confirm('Hoja de sprites optimizada. ¿Deseas descargar todos los formatos de exportación ahora (ZIP, GIF, Código, JSON)?')) {
+                        ExportManager.exportAllFormats();
+                    }
+                }
                 UIManager.showToast(message, 'success');
                 this.modificationMessage = null; // Reset message
             } else if (!this.isReloadingFromStorage) {

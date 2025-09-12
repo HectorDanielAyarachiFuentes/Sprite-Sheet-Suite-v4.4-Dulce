@@ -84,8 +84,7 @@ const UIManager = (() => {
             DOM.fpsSlider.disabled = !animFramesExist;
             DOM.fpsValue.textContent = DOM.fpsSlider.value;
         },
-        updateJsonOutput() {
-            const format = DOM.jsonFormatSelect.value;
+        getJsonString(format) {
             let out;
             const framesData = AppState.getFlattenedFrames();
             // --- CORRECCIÓN: Se actualiza la versión en los metadatos ---
@@ -120,15 +119,31 @@ const UIManager = (() => {
                     out = { meta, frames: framesData.map(f => ({ name: f.name, rect: f.rect, offset: f.offset })) };
                     break;
             }
-            const jsonString = JSON.stringify(out, null, 2);
+            return JSON.stringify(out, null, 2);
+        },
+        updateJsonOutput() {
+            const format = DOM.jsonFormatSelect.value;
+            const jsonString = this.getJsonString(format);
             DOM.jsonOutput.innerHTML = this.highlightSyntax(jsonString, 'json');
             DOM.jsonLineNumbers.innerHTML = Array.from({ length: jsonString.split('\n').length }, (_, i) => `<span>${i+1}</span>`).join('');
+        },
+        updateGifDimensions() {
+            if (!DOM.gifAspectRatioLock.checked) return;
+            const aspectRatio = AppState.getAnimationAspectRatio();
+            if (aspectRatio <= 0) return;
+
+            const currentWidth = parseInt(DOM.gifWidthInput.value, 10);
+            if (!isNaN(currentWidth) && currentWidth > 0) {
+                const newHeight = Math.round(currentWidth / aspectRatio);
+                if (newHeight > 0) DOM.gifHeightInput.value = newHeight;
+            }
         },
         updateAll() {
             this.updateClipsSelect();
             this.updateFramesList();
             this.updateJsonOutput();
             this.updateSubFramePanel();
+            this.updateGifDimensions();
             HistoryManager.updateButtons();
     },
     updateSubFramePanel() {

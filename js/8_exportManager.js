@@ -93,8 +93,8 @@ body {
     width: ${animFrames[0].rect.w}px;
     height: ${animFrames[0].rect.h}px;
     /* La imagen de fondo es la hoja de sprites completa.
-       Usamos imageDisplay.src para que funcione con data:URL (ej. al quitar fondo) */
-    background-image: url('${DOM.imageDisplay.src}');
+       Se asume que la imagen está en la misma carpeta que el HTML/CSS. */
+    background-image: url('${AppState.currentFileName}');
     background-repeat: no-repeat;
     
     /* Mantiene los píxeles nítidos */
@@ -116,8 +116,8 @@ ${keyframesSteps}
 
     return {
         init() {
-            DOM.exportZipButton.addEventListener('click', () => this.exportZip());
-            DOM.exportGifButton.addEventListener('click', () => this.exportGif());
+            DOM.exportZipButton.addEventListener('click', () => this.exportZip(true));
+            DOM.exportGifButton.addEventListener('click', () => this.exportGif(true));
             DOM.exportCodeButton.addEventListener('click', () => this.exportCode());
 
             // Listener para las nuevas opciones de exportación de GIF
@@ -163,27 +163,45 @@ ${keyframesSteps}
             });
         },
 
-        async exportZip() {
-            const allFrames = AppState.getFlattenedFrames();
-            if (allFrames.length === 0) {
-                UIManager.showToast('No hay frames para exportar.', 'warning');
+        async exportZip(showLoader = true) {
+            const animFrames = AppState.getAnimationFrames();
+            if (animFrames.length === 0) {
+                UIManager.showToast('No hay frames en el clip activo para exportar.', 'warning');
                 return;
             }
-            UIManager.showLoader('Generando ZIP de frames...');
+            if (showLoader) UIManager.showLoader('Generando ZIP de frames alineados...');
 
             try {
-                // Comprobación de seguridad para JSZip
                 if (typeof JSZip === 'undefined') {
                     throw new Error('La librería JSZip no está cargada. Revisa el script en index.html.');
                 }
                 const zip = new JSZip();
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.imageSmoothingEnabled = false; // Mantener píxeles nítidos
 
-                for (const frame of allFrames) {
-                    tempCanvas.width = frame.rect.w;
-                    tempCanvas.height = frame.rect.h;
-                    tempCtx.drawImage(DOM.imageDisplay, frame.rect.x, frame.rect.y, frame.rect.w, frame.rect.h, 0, 0, frame.rect.w, frame.rect.h);
+                // 1. Calcular el bounding box de la animación para que todos los frames tengan el mismo tamaño.
+                const animBBox = {
+                    minX: Math.min(...animFrames.map(f => -f.offset.x)),
+                    minY: Math.min(...animFrames.map(f => -f.offset.y)),
+                    maxX: Math.max(...animFrames.map(f => -f.offset.x + f.rect.w)),
+                    maxY: Math.max(...animFrames.map(f => -f.offset.y + f.rect.h)),
+                };
+                const canvasW = animBBox.maxX - animBBox.minX;
+                const canvasH = animBBox.maxY - animBBox.minY;
+
+                tempCanvas.width = canvasW;
+                tempCanvas.height = canvasH;
+
+                for (const frame of animFrames) {
+                    // 2. Limpiar el canvas y dibujar el frame en su posición alineada.
+                    tempCtx.clearRect(0, 0, canvasW, canvasH);
+                    const drawX = -frame.offset.x - animBBox.minX;
+                    const drawY = -frame.offset.y - animBBox.minY;
+
+                    tempCtx.drawImage(DOM.imageDisplay, frame.rect.x, frame.rect.y, frame.rect.w, frame.rect.h, drawX, drawY, frame.rect.w, frame.rect.h);
+                    
+                    // 3. Añadir el canvas (con el frame alineado) al ZIP.
                     const blob = await new Promise(res => tempCanvas.toBlob(res, 'image/png'));
                     zip.file(`${frame.name || `frame_${frame.id}`}.png`, blob);
                 }
@@ -194,22 +212,22 @@ ${keyframesSteps}
                 link.download = `${AppState.currentFileName.split('.')[0]}_frames.zip`;
                 link.click();
                 URL.revokeObjectURL(link.href);
-                UIManager.showToast('Frames exportados con éxito.', 'success');
+                if (showLoader) UIManager.showToast('Frames del clip exportados con éxito.', 'success');
             } catch (error) {
                 console.error("Error exporting ZIP:", error);
                 UIManager.showToast('Error al exportar frames ZIP.', 'danger');
             } finally {
-                UIManager.hideLoader();
+                if (showLoader) UIManager.hideLoader();
             }
         },
 
-        exportGif() {
+        exportGif(showLoader = true) {
             const animFrames = AppState.getAnimationFrames();
             if (animFrames.length === 0) {
                 UIManager.showToast("No hay frames en el clip activo para exportar.", 'warning');
                 return;
             }
-            UIManager.showLoader('Generando GIF...');
+            if (showLoader) UIManager.showLoader('Generando GIF...');
 
             // Comprobación de seguridad para la librería GIF
             if (typeof GIF === 'undefined') {
@@ -236,8 +254,14 @@ ${keyframesSteps}
                 const animHeight = animBBox.maxY - animBBox.minY;
 
                 // 2. Calcular la escala para cada eje. Esto permite estirar si la proporción no se mantiene.
-                const scaleX = animWidth > 0 ? gifWidth / animWidth : 0;
-                const scaleY = animHeight > 0 ? gifHeight / animHeight : 0;
+                // --- CORRECCIÓN: Calcular una escala única para mantener la proporción ---
+                const scale = Math.min(gifWidth / animWidth, gifHeight / animHeight);
+                const scaledAnimWidth = animWidth * scale;
+                const scaledAnimHeight = animHeight * scale;
+
+                // Calcular offsets para centrar la animación dentro del canvas del GIF
+                const canvasOffsetX = (gifWidth - scaledAnimWidth) / 2;
+                const canvasOffsetY = (gifHeight - scaledAnimHeight) / 2;
 
                 const gifOptions = {
                     workers: 2,
@@ -271,10 +295,10 @@ ${keyframesSteps}
                     }
 
                     // 2. Calcular la posición y tamaño del sprite DENTRO del canvas del GIF.
-                    const drawW = w * scaleX;
-                    const drawH = h * scaleY;
-                    const drawX = (-frame.offset.x - animBBox.minX) * scaleX;
-                    const drawY = (-frame.offset.y - animBBox.minY) * scaleY;
+                    const drawW = w * scale;
+                    const drawH = h * scale;
+                    const drawX = canvasOffsetX + (-frame.offset.x - animBBox.minX) * scale;
+                    const drawY = canvasOffsetY + (-frame.offset.y - animBBox.minY) * scale;
 
                     // 3. Dibujar el sprite en el canvas.
                     tempCtx.drawImage(DOM.imageDisplay, x, y, w, h, drawX, drawY, drawW, drawH);
@@ -308,19 +332,19 @@ ${keyframesSteps}
                     link.download = `${AppState.currentFileName.split('.')[0]}_${AppState.getActiveClip().name}.gif`;
                     link.click();
                     URL.revokeObjectURL(link.href);
-                    UIManager.showToast('GIF exportado con éxito.', 'success');
-                    UIManager.hideLoader();
+                    if (showLoader) UIManager.showToast('GIF exportado con éxito.', 'success');
+                    if (showLoader) UIManager.hideLoader();
                 });
                 
                 gif.on('progress', (p) => {
-                    UIManager.showLoader(`Generando GIF: ${Math.round(p * 100)}%`);
+                    if (showLoader) UIManager.showLoader(`Generando GIF: ${Math.round(p * 100)}%`);
                 });
 
                 gif.render();
             } catch (error) {
                 console.error("Error exporting GIF:", error);
                 UIManager.showToast('Error al exportar GIF.', 'danger');
-                UIManager.hideLoader();
+                if (showLoader) UIManager.hideLoader();
             }
         },
 
@@ -345,6 +369,66 @@ ${keyframesSteps}
 
             DOM.codePreviewContainer.style.display = 'grid';
             UIManager.showToast('Código HTML/CSS generado.', 'success');
+        },
+
+        async downloadCodeAsZip() {
+            const animFrames = AppState.getAnimationFrames();
+            if (animFrames.length === 0) return;
+
+            if (typeof JSZip === 'undefined') {
+                throw new Error('La librería JSZip no está cargada.');
+            }
+
+            const scale = parseFloat(DOM.exportScaleInput.value) || 2;
+            const { htmlCode, cssCode } = generateCssAnimationCode(animFrames, scale);
+
+            const zip = new JSZip();
+            zip.file("index.html", htmlCode);
+            zip.file("style.css", cssCode);
+
+            // Obtener la imagen como blob y añadirla al zip
+            const imageBlob = await fetch(DOM.imageDisplay.src).then(res => res.blob());
+            zip.file(AppState.currentFileName, imageBlob);
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = `${AppState.currentFileName.split('.')[0]}_code.zip`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        },
+
+        downloadJson() {
+            const format = DOM.jsonFormatSelect.value;
+            const jsonString = UIManager.getJsonString(format);
+            if (!jsonString || jsonString.trim() === '{}') {
+                return;
+            }
+
+            const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${AppState.currentFileName.split('.')[0]}_${format}.json`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        },
+
+        async exportAllFormats() {
+            UIManager.showToast('Iniciando exportación múltiple...', 'info');
+            UIManager.showLoader('Exportando todos los formatos...');
+            try {
+                // La imagen recortada ya se descarga desde trimSpritesheet.
+                await this.exportZip(false);
+                await this.downloadCodeAsZip();
+                this.downloadJson();
+                this.exportGif(false);
+                UIManager.showToast('Todas las exportaciones han comenzado.', 'success');
+            } catch (error) {
+                console.error("Error en exportación múltiple:", error);
+                UIManager.showToast('Ocurrió un error durante la exportación múltiple.', 'danger');
+            } finally {
+                UIManager.hideLoader();
+            }
         }
     };
 })();
