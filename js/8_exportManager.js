@@ -250,7 +250,7 @@ ${keyframesSteps}
 
                 const gif = new GIF(gifOptions);
                 const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
+                const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
                 tempCanvas.width = gifWidth;
                 tempCanvas.height = gifHeight;
 
