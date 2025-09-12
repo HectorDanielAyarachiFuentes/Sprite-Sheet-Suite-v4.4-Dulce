@@ -66,6 +66,8 @@ export const DOM = {
     eraserToolButton: document.getElementById('eraser-tool-button'),
     autoDetectToolButton: document.getElementById('auto-detect-tool-button'),
     removeBgToolButton: document.getElementById('remove-bg-tool-button'),
+    trimSpritesheetButton: document.getElementById('trim-spritesheet-button'),
+    frameInspectorToolButton: document.getElementById('frame-inspector-tool-button'),
     editorArea: document.getElementById('editor-area'),
     imageContainer: document.getElementById('image-container'),
     zoomOutButton: document.getElementById('zoom-out-button'),
@@ -79,7 +81,6 @@ export const DOM = {
     snapToGridCheckbox: document.getElementById('snap-to-grid-checkbox'),
     gridSizeInput: document.getElementById('grid-size-input'),
     // --- NUEVO: Inspector de Frames ---
-    frameInspectorToolButton: document.getElementById('frame-inspector-tool-button'),
     frameInspectorPanel: document.getElementById('frame-inspector-panel'),
     closeInspectorButton: document.getElementById('close-inspector-button'),
     alignGrid: document.getElementById('align-grid'),

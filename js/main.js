@@ -67,6 +67,7 @@ const ZoomManager = {
 export const App = {
     isReloadingFromStorage: false,
     isModifyingImage: false,
+    modificationMessage: null,
 
     init() {
         console.log("Aplicación Sprite Sheet iniciada.");
@@ -112,7 +113,9 @@ export const App = {
                 this.isModifyingImage = false;
                 this.updateAll(true); // Redraw and save state with new image
                 SessionManager.addToHistory(); // Update history thumbnail with the new image
-                UIManager.showToast('Fondo eliminado con éxito.', 'success');
+                const message = this.modificationMessage || 'Imagen modificada con éxito.';
+                UIManager.showToast(message, 'success');
+                this.modificationMessage = null; // Reset message
             } else if (!this.isReloadingFromStorage) {
                 // This is a brand new image load
                 HistoryManager.reset();
@@ -163,6 +166,7 @@ export const App = {
         DOM.createFrameToolButton.addEventListener('click', () => this.setActiveTool('create'));
         DOM.eraserToolButton.addEventListener('click', () => this.setActiveTool('eraser'));
         DOM.removeBgToolButton.addEventListener('click', () => this.removeBackground());
+        DOM.trimSpritesheetButton.addEventListener('click', () => this.trimSpritesheet());
         // --- NUEVO: Inspector de Frames ---
         DOM.frameInspectorToolButton.addEventListener('click', () => this.openFrameInspector());
         DOM.closeInspectorButton.addEventListener('click', () => this.closeFrameInspector());
@@ -400,6 +404,7 @@ export const App = {
             tempCtx.putImageData(imageData, 0, 0);
 
             this.isModifyingImage = true; // Set flag before changing src
+            this.modificationMessage = 'Fondo eliminado con éxito.';
             // The onload event will handle hiding the loader, updating UI, and showing toast.
             DOM.imageDisplay.src = tempCanvas.toDataURL('image/png');
 
@@ -408,6 +413,72 @@ export const App = {
             UIManager.showToast('Ocurrió un error al eliminar el fondo.', 'danger');
             this.isModifyingImage = false;
             UIManager.hideLoader(); // Hide loader on error
+        }
+    },
+
+    async trimSpritesheet() {
+        if (AppState.isLocked) { UIManager.showToast('Desbloquea los frames primero (L)', 'warning'); return; }
+        if (AppState.frames.length === 0) {
+            UIManager.showToast('No hay frames definidos para recortar.', 'warning');
+            return;
+        }
+
+        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto recortará la hoja de sprites para que se ajuste solo a los frames definidos. La nueva imagen se descargará y reemplazará a la actual en la aplicación.\n\n¿Deseas continuar?')) {
+            return;
+        }
+
+        UIManager.showLoader('Recortando hoja de sprites...');
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        try {
+            // 1. Calcular el bounding box de todos los frames.
+            const allFrames = AppState.frames;
+            if (allFrames.length === 0) throw new Error("No hay frames para calcular el área de recorte.");
+
+            const bBox = {
+                minX: Math.min(...allFrames.map(f => f.rect.x)),
+                minY: Math.min(...allFrames.map(f => f.rect.y)),
+                maxX: Math.max(...allFrames.map(f => f.rect.x + f.rect.w)),
+                maxY: Math.max(...allFrames.map(f => f.rect.y + f.rect.h))
+            };
+
+            const newWidth = bBox.maxX - bBox.minX;
+            const newHeight = bBox.maxY - bBox.minY;
+
+            if (newWidth <= 0 || newHeight <= 0) throw new Error("El área de recorte es inválida.");
+
+            // 2. Crear un nuevo canvas y dibujar la porción recortada.
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = newWidth;
+            tempCanvas.height = newHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(DOM.imageDisplay, bBox.minX, bBox.minY, newWidth, newHeight, 0, 0, newWidth, newHeight);
+            const newImageURL = tempCanvas.toDataURL('image/png');
+
+            // 3. Iniciar la descarga de la nueva imagen.
+            const link = document.createElement('a');
+            link.href = newImageURL;
+            link.download = `trimmed_${AppState.currentFileName}`;
+            document.body.appendChild(link); // Necesario para Firefox
+            link.click();
+            document.body.removeChild(link); // Limpiar el DOM
+
+            // 4. Actualizar las coordenadas de todos los frames.
+            AppState.frames.forEach(frame => {
+                frame.rect.x -= bBox.minX;
+                frame.rect.y -= bBox.minY;
+            });
+
+            // 5. Actualizar la imagen principal y el estado.
+            this.isModifyingImage = true;
+            this.modificationMessage = 'Hoja de sprites recortada. La nueva imagen se ha descargado y ahora se usa en la aplicación.';
+            AppState.currentFileName = `trimmed_${AppState.currentFileName}`;
+            DOM.imageDisplay.src = newImageURL;
+
+        } catch (error) {
+            console.error("Error recortando la hoja de sprites:", error);
+            UIManager.showToast('Ocurrió un error al recortar la imagen.', 'danger');
+            UIManager.hideLoader();
         }
     },
 
