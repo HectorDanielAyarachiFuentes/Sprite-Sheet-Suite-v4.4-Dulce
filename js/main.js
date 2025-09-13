@@ -558,11 +558,26 @@ export const App = {
             const dimensions = document.createElement('p');
             dimensions.className = 'dimensions';
             const currentSize = `${frame.rect.w}x${frame.rect.h}`;
-            dimensions.textContent = currentSize;
+            
+            let htmlContent = currentSize;
             if (mostCommonSize && currentSize !== mostCommonSize) {
                 dimensions.classList.add('mismatch');
                 dimensions.title = `Difiere del tamaño más común (${mostCommonSize})`;
             }
+
+            // Comprobar si hay offsets aplicados para mostrar el tamaño unificado
+            const offset = frame.offset; // Ya viene en el frame aplanado
+            if (offset && (offset.x !== 0 || offset.y !== 0)) {
+                // La fórmula es: tamañoUnificado = tamañoOriginal + 2 * offset
+                const unifiedW = frame.rect.w + 2 * offset.x;
+                const unifiedH = frame.rect.h + 2 * offset.y;
+
+                // Solo mostrar si el resultado es un tamaño válido
+                if (unifiedW > 0 && unifiedH > 0) {
+                    htmlContent += `<br><span class="unified-size-display">→ ${unifiedW}x${unifiedH}</span>`;
+                }
+            }
+            dimensions.innerHTML = htmlContent;
 
             card.appendChild(canvasContainer);
             card.appendChild(dimensions);
