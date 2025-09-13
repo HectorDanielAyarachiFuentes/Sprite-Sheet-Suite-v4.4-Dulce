@@ -93,6 +93,8 @@ export const DOM = {
     inspectorAddAllButton: document.getElementById('inspector-add-all-button'),
     inspectorRemoveAllButton: document.getElementById('inspector-remove-all-button'),
     inspectorGrid: document.getElementById('inspector-grid'),
+    inspectorTimelineContainer: document.getElementById('inspector-timeline-container'),
+    timelineAlignBottomBtn: document.getElementById('timeline-align-bottom-btn'),
     // --- FIN ---
     // --- NUEVO: Editor de Offset ---
     offsetEditorModal: document.getElementById('offset-editor-modal'),

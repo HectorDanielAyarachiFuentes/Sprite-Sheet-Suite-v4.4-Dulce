@@ -367,55 +367,74 @@
             <button id="close-inspector-button" class="close-btn">&times;</button>
         </div>
         <div class="inspector-toolbar">
-            <div class="selection-controls">
-                <p class="help-text"><b>Selección de Clip:</b> Los frames no pertenecen a ninguna animación por defecto. Haz clic en las casillas para añadirlos/quitarlos del clip activo.</p>
-                <div class="input-group">
-                    <button id="inspector-add-all-button">Añadir Todos al Clip</button>
-                    <button id="inspector-remove-all-button">Quitar Todos del Clip</button>
-                </div>
-            </div>
-            <div class="separator"></div>
-            <div class="align-controls">
-                <p class="help-text"><b>Alineación (No Destructiva):</b> Usa offsets para alinear los frames sin cambiar su tamaño original.</p>
-                <div id="align-grid" class="align-grid">
-                    <button class="align-btn" data-align="top-left" title="Alinear Arriba-Izquierda"></button>
-                    <button class="align-btn" data-align="top-center" title="Alinear Arriba-Centro"></button>
-                    <button class="align-btn" data-align="top-right" title="Alinear Arriba-Derecha"></button>
-                    <button class="align-btn" data-align="middle-left" title="Alinear Medio-Izquierda"></button>
-                    <button class="align-btn" data-align="center" title="Alinear Centro"></button>
-                    <button class="align-btn" data-align="middle-right" title="Alinear Medio-Derecha"></button>
-                    <button class="align-btn" data-align="bottom-left" title="Alinear Abajo-Izquierda"></button>
-                    <button class="align-btn" data-align="bottom-center" title="Alinear Abajo-Centro"></button>
-                    <button class="align-btn" data-align="bottom-right" title="Alinear Abajo-Derecha"></button>
-                </div>
-            </div>
-            <div class="separator"></div>
-            <div class="size-unification-controls">
-                <p class="help-text"><b>Unificar Tamaño de Animación (No Destructivo):</b> Ajusta los offsets de los frames en el clip para que todos ocupen un lienzo del mismo tamaño.</p>
-                <div id="unify-size-recommendation" class="recommendation-box" style="display: none;">
-                    <p>Recomendación (tamaño máximo): <strong id="recommended-size-text"></strong></p>
-                    <button id="use-recommended-size-btn">Usar</button>
-                </div>
-                <div class="input-group unify-align-controls">
-                    <label>Alineación:</label>
-                    <div class="segmented-control" id="unify-align-y">
-                        <button data-align="top" title="Alinear Arriba">T</button>
-                        <button data-align="center" class="active" title="Alinear Centro">C</button>
-                        <button data-align="bottom" title="Alinear Abajo">B</button>
-                    </div>
-                    <div class="segmented-control" id="unify-align-x">
-                        <button data-align="left" title="Alinear Izquierda">L</button>
-                        <button data-align="center" class="active" title="Alinear Centro">C</button>
-                        <button data-align="right" title="Alinear Derecha">R</button>
+            <details class="inspector-section" open>
+                <summary>Selección de Clip</summary>
+                <div>
+                    <p class="help-text">Haz clic en las casillas para añadir/quitar frames del clip activo.</p>
+                    <div class="input-group">
+                        <button id="inspector-add-all-button">Añadir Todos al Clip</button>
+                        <button id="inspector-remove-all-button">Quitar Todos del Clip</button>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Ancho:</label><input type="number" id="unify-width-input" min="1" placeholder="auto">
-                    <label>Alto:</label><input type="number" id="unify-height-input" min="1" placeholder="auto">
-                    <button id="unify-size-button">Aplicar a Todos</button>
+            </details>
+            <details class="inspector-section">
+                <summary>Alineación Rápida</summary>
+                <div>
+                    <p class="help-text">Alinea los frames del clip activo usando offsets.</p>
+                    <div id="align-grid" class="align-grid">
+                        <button class="align-btn" data-align="top-left" title="Alinear Arriba-Izquierda"></button>
+                        <button class="align-btn" data-align="top-center" title="Alinear Arriba-Centro"></button>
+                        <button class="align-btn" data-align="top-right" title="Alinear Arriba-Derecha"></button>
+                        <button class="align-btn" data-align="middle-left" title="Alinear Medio-Izquierda"></button>
+                        <button class="align-btn" data-align="center" title="Alinear Centro"></button>
+                        <button class="align-btn" data-align="middle-right" title="Alinear Medio-Derecha"></button>
+                        <button class="align-btn" data-align="bottom-left" title="Alinear Abajo-Izquierda"></button>
+                        <button class="align-btn" data-align="bottom-center" title="Alinear Abajo-Centro"></button>
+                        <button class="align-btn" data-align="bottom-right" title="Alinear Abajo-Derecha"></button>
+                    </div>
                 </div>
-                <p class="help-text">Deja los campos en blanco para usar el tamaño máximo del clip.</p>
-            </div>
+            </details>
+            <details class="inspector-section">
+                <summary>Unificar Tamaño</summary>
+                <div>
+                    <p class="help-text">Ajusta los offsets de TODOS los frames para que ocupen un lienzo del mismo tamaño.</p>
+                    <div id="unify-size-recommendation" class="recommendation-box" style="display: none;">
+                        <p>Recomendación (tamaño máximo): <strong id="recommended-size-text"></strong></p>
+                        <button id="use-recommended-size-btn">Usar</button>
+                    </div>
+                    <div class="input-group unify-align-controls">
+                        <label>Alineación:</label>
+                        <div class="segmented-control" id="unify-align-y">
+                            <button data-align="top" title="Alinear Arriba">T</button>
+                            <button data-align="center" class="active" title="Alinear Centro">C</button>
+                            <button data-align="bottom" title="Alinear Abajo">B</button>
+                        </div>
+                        <div class="segmented-control" id="unify-align-x">
+                            <button data-align="left" title="Alinear Izquierda">L</button>
+                            <button data-align="center" class="active" title="Alinear Centro">C</button>
+                            <button data-align="right" title="Alinear Derecha">R</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Ancho:</label><input type="number" id="unify-width-input" min="1" placeholder="auto">
+                        <label>Alto:</label><input type="number" id="unify-height-input" min="1" placeholder="auto">
+                        <button id="unify-size-button">Aplicar a Todos</button>
+                    </div>
+                    <p class="help-text">Deja los campos en blanco para usar el tamaño máximo.</p>
+                </div>
+            </details>
+            <details class="inspector-section timeline-editor" style="display: none;">
+                <summary>Línea de Tiempo</summary>
+                <div>
+                    <div class="timeline-header">
+                        <p class="help-text">Arrastra cada frame verticalmente para ajustar su posición.</p>
+                        <button id="timeline-align-bottom-btn" class="small-action">Alinear Todos Abajo</button>
+                    </div>
+                    <div id="inspector-timeline-container" class="timeline-container">
+                        <!-- Las pistas de los frames se generarán aquí con JS -->
+                    </div>
+                </div>
+            </details>
         </div>
         <div id="inspector-grid" class="inspector-grid">
             <!-- Los frames se generarán aquí con JS -->

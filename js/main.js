@@ -132,6 +132,16 @@ export const App = {
         initialOffset: { x: 0, y: 0 },
         canvasSize: { w: 0, h: 0 }
     },
+    timelineEditorState: {
+        isDragging: false,
+        targetThumb: null,
+        frameId: null,
+        startY: 0,
+        initialOffsetY: 0,
+        minY: 0,
+        maxY: 0,
+        rangeY: 0,
+    },
 
     init() {
         console.log("Aplicación Sprite Sheet iniciada.");
@@ -349,6 +359,24 @@ export const App = {
         DOM.lockFramesButton.addEventListener('click', () => this.toggleLock());
         DOM.fullscreenButton.addEventListener('click', () => this.toggleFullscreen());
 
+        // --- NUEVO: Listeners para la Línea de Tiempo del Inspector ---
+        const timelineContainer = DOM.inspectorTimelineContainer;
+        DOM.timelineAlignBottomBtn.addEventListener('click', () => this.alignTimelineFramesBottom());
+
+        timelineContainer.addEventListener('mousedown', (e) => {
+            const thumb = e.target.closest('.timeline-thumb');
+            if (thumb && !this.timelineEditorState.isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                const state = this.timelineEditorState;
+                state.isDragging = true;
+                state.targetThumb = thumb;
+                state.frameId = thumb.dataset.frameId;
+                state.startY = e.clientY;
+                state.initialOffsetY = AppState.subFrameOffsets[state.frameId]?.y || 0;
+            }
+        });
+
         // --- NUEVO: Listeners para el Editor de Offset ---
         DOM.closeOffsetEditorModalBtn.addEventListener('click', () => this.closeOffsetEditor());
         DOM.cancelOffsetEditorBtn.addEventListener('click', () => this.closeOffsetEditor());
@@ -377,26 +405,68 @@ export const App = {
             state.dragStartPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             state.initialOffset = { ...state.tempOffset };
         });
-
+        
+        // --- COMBINADO: Listeners globales de movimiento y liberación del ratón ---
         document.addEventListener('mousemove', (e) => {
-            const state = this.offsetEditorState;
-            if (!state.isOpen || !state.isDragging) return;
+            // 1. Arrastre en la Línea de Tiempo
+            const timelineState = this.timelineEditorState;
+            if (timelineState.isDragging) {
+                const dy = e.clientY - timelineState.startY;
+                const scaleFactor = 0.5;
+                const newOffsetY = timelineState.initialOffsetY + (dy * scaleFactor);
 
-            const rect = offsetCanvas.getBoundingClientRect();
-            const currentPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            
-            const scale = (state.canvasSize.w > 0) ? (offsetCanvas.width / state.canvasSize.w) : 1;
-            const dx = (currentPos.x - state.dragStartPos.x) / scale;
-            const dy = (currentPos.y - state.dragStartPos.y) / scale;
+                // Lógica de Suelo Magnético y Límite Inferior
+                const animFrames = AppState.getAnimationFrames();
+                const frame = animFrames.find(f => f.id === timelineState.frameId);
+                if (frame && animFrames.length > 0) {
+                    const maxHeight = Math.max(...animFrames.map(f => f.rect.h));
+                    const floorOffsetY = maxHeight - frame.rect.h;
+                    const snapThreshold = 5;
+                    let finalOffsetY = newOffsetY;
 
-            state.tempOffset.x = state.initialOffset.x + dx;
-            state.tempOffset.y = state.initialOffset.y + dy;
+                    if (Math.abs(finalOffsetY - floorOffsetY) < snapThreshold) {
+                        finalOffsetY = floorOffsetY;
+                    }
+                    if (finalOffsetY > floorOffsetY) {
+                        finalOffsetY = floorOffsetY;
+                    }
 
-            this.drawOffsetEditorCanvas();
-            this.updateOffsetEditorInputs();
+                    if (AppState.subFrameOffsets[timelineState.frameId]) {
+                        AppState.subFrameOffsets[timelineState.frameId].y = finalOffsetY;
+                    }
+                } else {
+                    if (AppState.subFrameOffsets[timelineState.frameId]) {
+                        AppState.subFrameOffsets[timelineState.frameId].y = newOffsetY;
+                    }
+                }
+                this.updateTimelineUI();
+                AnimationManager.reset();
+            }
+
+            // 2. Arrastre en el Editor de Offset Visual
+            const offsetEditorState = this.offsetEditorState;
+            if (offsetEditorState.isOpen && offsetEditorState.isDragging) {
+                const rect = offsetCanvas.getBoundingClientRect();
+                const currentPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                const scale = (offsetEditorState.canvasSize.w > 0) ? (offsetCanvas.width / offsetEditorState.canvasSize.w) : 1;
+                const dx = (currentPos.x - offsetEditorState.dragStartPos.x) / scale;
+                const dy = (currentPos.y - offsetEditorState.dragStartPos.y) / scale;
+                offsetEditorState.tempOffset.x = offsetEditorState.initialOffset.x + dx;
+                offsetEditorState.tempOffset.y = offsetEditorState.initialOffset.y + dy;
+                this.drawOffsetEditorCanvas();
+                this.updateOffsetEditorInputs();
+            }
         });
 
         document.addEventListener('mouseup', () => {
+            // 1. Liberación en la Línea de Tiempo
+            if (this.timelineEditorState.isDragging) {
+                this.timelineEditorState.isDragging = false;
+                const finalOffsetY = AppState.subFrameOffsets[this.timelineEditorState.frameId].y;
+                AppState.subFrameOffsets[this.timelineEditorState.frameId].y = parseFloat(finalOffsetY.toFixed(1));
+                HistoryManager.saveGlobalState();
+            }
+            // 2. Liberación en el Editor de Offset Visual
             if (this.offsetEditorState.isDragging) {
                 this.offsetEditorState.isDragging = false;
                 this.updateOffsetEditorInputs(true); // Redondear al soltar
@@ -776,6 +846,87 @@ export const App = {
         } else {
             DOM.unifySizeRecommendation.style.display = 'none';
         }
+
+        // --- NUEVO: Lógica para la Línea de Tiempo ---
+        const timelineContainer = DOM.inspectorTimelineContainer;
+        const timelineEditor = timelineContainer.closest('.timeline-editor');
+        const animFrames = AppState.getAnimationFrames();
+        timelineContainer.innerHTML = '';
+
+        if (animFrames.length > 0) {
+            timelineEditor.style.display = 'block';
+
+            // --- NUEVO: Calcular y guardar el rango inicial para la línea de tiempo ---
+            const offsetsY = animFrames.map(f => f.offset.y);
+            this.timelineEditorState.minY = Math.min(...offsetsY);
+            this.timelineEditorState.maxY = Math.max(...offsetsY);
+            // Añadir un poco de espacio para poder arrastrar más allá del mínimo/máximo inicial
+            const padding = (this.timelineEditorState.maxY - this.timelineEditorState.minY) * 0.2 || 20;
+            this.timelineEditorState.minY -= padding;
+            this.timelineEditorState.maxY += padding;
+            this.timelineEditorState.rangeY = this.timelineEditorState.maxY - this.timelineEditorState.minY;
+
+            animFrames.forEach(frame => {
+                const track = document.createElement('div');
+                track.className = 'timeline-track';
+
+                const thumb = document.createElement('div');
+                thumb.className = 'timeline-thumb';
+                thumb.dataset.frameId = frame.id;
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const thumbW = 54; // un poco menos que el track
+                const thumbH = 54;
+                const scale = Math.min(thumbW / frame.rect.w, thumbH / frame.rect.h, 1);
+                canvas.width = frame.rect.w * scale;
+                canvas.height = frame.rect.h * scale;
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(DOM.imageDisplay, frame.rect.x, frame.rect.y, frame.rect.w, frame.rect.h, 0, 0, canvas.width, canvas.height);
+
+                // --- NUEVO: Añadir la línea de suelo visual ---
+                const floorLine = document.createElement('div');
+                floorLine.className = 'timeline-floor';
+
+                thumb.appendChild(canvas);
+
+                track.appendChild(thumb);
+                track.appendChild(floorLine);
+                timelineContainer.appendChild(track);
+            });
+            
+            this.updateTimelineUI(); // Posicionar las miniaturas
+        } else {
+            timelineEditor.style.display = 'none';
+        }
+    },
+
+    updateTimelineUI() {
+        const timelineContainer = DOM.inspectorTimelineContainer;
+        const animFrames = AppState.getAnimationFrames();
+        if (animFrames.length === 0) return;
+
+        // --- MODIFICADO: Usar el rango guardado en el estado para una escala fija ---
+        const { minY, rangeY } = this.timelineEditorState;
+
+        const trackHeight = 120; // de style.css
+        const thumbHeight = 60;  // de style.css
+        const availableTrack = trackHeight - thumbHeight;
+
+        // Actualizar todas las miniaturas
+        timelineContainer.querySelectorAll('.timeline-thumb').forEach(thumbEl => {
+            const fId = thumbEl.dataset.frameId;
+            const frameOffsetY = AppState.subFrameOffsets[fId]?.y || 0;
+            const relativeY = frameOffsetY - minY;
+            
+            let topPercent = 0.5; // Centrado por defecto si no hay rango
+            if (rangeY > 0) {
+                topPercent = relativeY / rangeY;
+            }
+
+            // --- MODIFICADO: No se limita la posición, para que el usuario pueda arrastrar libremente ---
+            thumbEl.style.top = `${topPercent * availableTrack}px`;
+        });
     },
 
     closeFrameInspector() { DOM.frameInspectorPanel.classList.add('hidden'); },
@@ -1036,6 +1187,26 @@ export const App = {
         HistoryManager.saveGlobalState();
         this.updateAll(false);
         UIManager.showToast(`Frames alineados (offset) a: ${alignMode}.`, 'success');
+    },
+
+    alignTimelineFramesBottom() {
+        // Usamos 'bottom-center' para que queden en el piso y centrados horizontalmente.
+        this.alignFramesByOffset('bottom-center'); 
+        // La función anterior ya guarda el historial y actualiza la UI principal.
+
+        // --- NUEVO: Recalcular el rango de la línea de tiempo después de alinear ---
+        const animFrames = AppState.getAnimationFrames();
+        if (animFrames.length > 0) {
+            const offsetsY = animFrames.map(f => f.offset.y);
+            this.timelineEditorState.minY = Math.min(...offsetsY);
+            this.timelineEditorState.maxY = Math.max(...offsetsY);
+            const padding = (this.timelineEditorState.maxY - this.timelineEditorState.minY) * 0.2 || 20;
+            this.timelineEditorState.minY -= padding;
+            this.timelineEditorState.maxY += padding;
+            this.timelineEditorState.rangeY = this.timelineEditorState.maxY - this.timelineEditorState.minY;
+        }
+        // Y después refrescamos la línea de tiempo para mostrar las nuevas posiciones.
+        this.updateTimelineUI(); 
     },
 
     generateByGrid() {

@@ -483,13 +483,56 @@ select { width: 100%; flex-grow: 1; }
 
 .inspector-toolbar {
     background-color: var(--ps-bg-panel);
-    padding: 10px 20px;
+    padding: 10px;
     border-bottom: 1px solid var(--ps-border-dark);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    align-items: stretch;
+    gap: 5px;
+}
+
+.inspector-toolbar .separator {
+    display: none;
+}
+
+.inspector-section {
+    border: 1px solid var(--ps-border-light);
+    border-radius: 3px;
+    background-color: var(--ps-bg-panel);
+}
+
+.inspector-section > summary {
+    background-color: var(--ps-bg-panel-header);
+    color: var(--ps-text-light);
+    padding: 8px 10px 8px 25px;
+    font-weight: bold;
+    cursor: pointer;
+    list-style: none;
+    position: relative;
+    font-size: 11px;
+}
+
+.inspector-section > summary::-webkit-details-marker {
+    display: none;
+}
+
+.inspector-section > summary::before {
+    content: '►';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.inspector-section[open] > summary::before {
+    transform: translateY(-50%) rotate(90deg);
+}
+
+.inspector-section > div {
+    padding: 10px;
 }
 
 .align-controls {
@@ -543,14 +586,6 @@ select { width: 100%; flex-grow: 1; }
     cursor: not-allowed;
 }
 
-.selection-controls {
-    width: 100%;
-}
-
-.selection-controls .input-group {
-    display: flex;
-    gap: 10px;
-}
 .selection-controls .input-group button {
     flex-grow: 1;
 }
@@ -729,6 +764,74 @@ select { width: 100%; flex-grow: 1; }
     color: var(--primary);
     font-weight: normal;
     font-size: 10px;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.timeline-header .help-text {
+    margin-bottom: 0;
+}
+
+.timeline-editor {
+    width: 100%;
+}
+
+.timeline-container {
+    background-color: var(--ps-bg-dark);
+    border: 1px solid var(--ps-border-dark);
+    border-radius: 4px;
+    padding: 10px;
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    min-height: 150px; /* Give it some height */
+}
+
+.timeline-track {
+    position: relative;
+    width: 60px; /* Fixed width for each frame track */
+    height: 120px; /* Fixed height */
+    background-color: var(--ps-bg-panel);
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.timeline-thumb {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 60px; /* Thumbnails are shorter than the track */
+    background-color: var(--ps-button-bg);
+    border: 1px solid var(--ps-border-light);
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-thumb:hover {
+    border-color: var(--primary);
+}
+
+.timeline-floor {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--primary);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.timeline-thumb canvas {
+    max-width: 90%;
+    max-height: 90%;
+    image-rendering: pixelated;
 }
 
 #offset-editor-canvas {
