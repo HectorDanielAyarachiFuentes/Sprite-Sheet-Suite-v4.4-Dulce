@@ -1186,6 +1186,7 @@ export const App = {
 
         HistoryManager.saveGlobalState();
         this.updateAll(false);
+        this.openFrameInspector(); // Refrescar el inspector para mostrar los cambios
         UIManager.showToast(`Frames alineados (offset) a: ${alignMode}.`, 'success');
     },
 
