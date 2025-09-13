@@ -63,6 +63,61 @@ const ZoomManager = {
     }
 };
 
+// --- Simple Growing Packer Algorithm ---
+const GrowingPacker = function() {};
+GrowingPacker.prototype = {
+    fit: function(blocks) {
+        let n, node, block, len = blocks.length;
+        let w = len > 0 ? blocks[0].w : 0;
+        let h = len > 0 ? blocks[0].h : 0;
+        this.root = { x: 0, y: 0, w: w, h: h };
+        for (n = 0; n < len; n++) {
+            block = blocks[n];
+            if (node = this.findNode(this.root, block.w, block.h)) {
+                block.fit = this.splitNode(node, block.w, block.h);
+            } else {
+                block.fit = this.growNode(block.w, block.h);
+            }
+        }
+    },
+    findNode: function(root, w, h) {
+        if (root.used) {
+            return this.findNode(root.right, w, h) || this.findNode(root.down, w, h);
+        } else if ((w <= root.w) && (h <= root.h)) {
+            return root;
+        } else {
+            return null;
+        }
+    },
+    splitNode: function(node, w, h) {
+        node.used = true;
+        node.down = { x: node.x, y: node.y + h, w: node.w, h: node.h - h };
+        node.right = { x: node.x + w, y: node.y, w: node.w - w, h: h };
+        return node;
+    },
+    growNode: function(w, h) {
+        const canGrowDown = (w <= this.root.w);
+        const canGrowRight = (h <= this.root.h);
+        const shouldGrowRight = canGrowRight && (this.root.h >= (this.root.w + w));
+        const shouldGrowDown = canGrowDown && (this.root.w >= (this.root.h + h));
+        if (shouldGrowRight) return this.growRight(w, h);
+        else if (shouldGrowDown) return this.growDown(w, h);
+        else if (canGrowRight) return this.growRight(w, h);
+        else if (canGrowDown) return this.growDown(w, h);
+        else return null;
+    },
+    growRight: function(w, h) {
+        const previousRoot = this.root;
+        this.root = { used: true, x: 0, y: 0, w: previousRoot.w + w, h: previousRoot.h, down: previousRoot, right: { x: previousRoot.w, y: 0, w: w, h: previousRoot.h } };
+        let node; if (node = this.findNode(this.root, w, h)) { return this.splitNode(node, w, h); } return null;
+    },
+    growDown: function(w, h) {
+        const previousRoot = this.root;
+        this.root = { used: true, x: 0, y: 0, w: previousRoot.w, h: previousRoot.h + h, down: { x: 0, y: previousRoot.h, w: previousRoot.w, h: h }, right: previousRoot };
+        let node; if (node = this.findNode(this.root, w, h)) { return this.splitNode(node, w, h); } return null;
+    }
+};
+
 // --- Objeto Principal de la Aplicación ---
 export const App = {
     isReloadingFromStorage: false,
@@ -220,8 +275,8 @@ export const App = {
                 const subFrameId = AppState.selectedSubFrameId;
                 if (!subFrameId) return;
 
-                const newOffsetX = parseInt(DOM.subframeOffsetXInput.value, 10) || 0;
-                const newOffsetY = parseInt(DOM.subframeOffsetYInput.value, 10) || 0;
+                const newOffsetX = parseFloat(DOM.subframeOffsetXInput.value) || 0;
+                const newOffsetY = parseFloat(DOM.subframeOffsetYInput.value) || 0;
 
                 AppState.subFrameOffsets[subFrameId] = { x: newOffsetX, y: newOffsetY };
                 
@@ -430,66 +485,83 @@ export const App = {
 
     async trimSpritesheet() {
         if (AppState.isLocked) { UIManager.showToast('Desbloquea los frames primero (L)', 'warning'); return; }
-        if (AppState.frames.length === 0) {
-            UIManager.showToast('No hay frames definidos para recortar.', 'warning');
+        const allFrames = AppState.getFlattenedFrames();
+        if (allFrames.length === 0) {
+            UIManager.showToast('No hay frames definidos para re-empaquetar.', 'warning');
             return;
         }
 
-        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto recortará la hoja de sprites para que se ajuste solo a los frames definidos. La nueva imagen se descargará y reemplazará a la actual en la aplicación.\n\n¿Deseas continuar?')) {
+        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto re-empaquetará todos los sprites en una nueva hoja con un margen de 3px. Se perderá la estructura de grupos y clips. La nueva imagen se descargará y reemplazará a la actual.\n\n¿Deseas continuar?')) {
             return;
         }
 
-        UIManager.showLoader('Recortando hoja de sprites...');
+        UIManager.showLoader('Re-empaquetando hoja de sprites...');
         await new Promise(resolve => setTimeout(resolve, 50));
 
         try {
-            // 1. Calcular el bounding box de todos los frames.
-            const allFrames = AppState.frames;
-            if (allFrames.length === 0) throw new Error("No hay frames para calcular el área de recorte.");
+            const margin = 3;
 
-            const bBox = {
-                minX: Math.min(...allFrames.map(f => f.rect.x)),
-                minY: Math.min(...allFrames.map(f => f.rect.y)),
-                maxX: Math.max(...allFrames.map(f => f.rect.x + f.rect.w)),
-                maxY: Math.max(...allFrames.map(f => f.rect.y + f.rect.h))
-            };
+            // 1. Preparar bloques para el empaquetador
+            const blocks = allFrames.map(frame => ({
+                w: frame.rect.w + margin * 2,
+                h: frame.rect.h + margin * 2,
+                data: frame // Mantener referencia al frame original
+            }));
 
-            const newWidth = bBox.maxX - bBox.minX;
-            const newHeight = bBox.maxY - bBox.minY;
+            // Ordenar bloques por lado máximo para mejor eficiencia de empaquetado
+            blocks.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h));
 
-            if (newWidth <= 0 || newHeight <= 0) throw new Error("El área de recorte es inválida.");
+            // 2. Usar el empaquetador para obtener el nuevo layout
+            const packer = new GrowingPacker();
+            packer.fit(blocks);
 
-            // 2. Crear un nuevo canvas y dibujar la porción recortada.
+            const newWidth = packer.root.w;
+            const newHeight = packer.root.h;
+
+            if (newWidth <= 0 || newHeight <= 0) throw new Error("El área de empaquetado es inválida.");
+
+            // 3. Crear un nuevo canvas y dibujar los sprites en sus nuevas posiciones
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = newWidth;
             tempCanvas.height = newHeight;
             const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(DOM.imageDisplay, bBox.minX, bBox.minY, newWidth, newHeight, 0, 0, newWidth, newHeight);
-            const newImageURL = tempCanvas.toDataURL('image/png');
+            const newFrames = [];
 
-            // 3. Iniciar la descarga de la nueva imagen.
-            const link = document.createElement('a');
-            link.href = newImageURL;
-            link.download = `trimmed_${AppState.currentFileName}`;
-            document.body.appendChild(link); // Necesario para Firefox
-            link.click();
-            document.body.removeChild(link); // Limpiar el DOM
+            blocks.forEach((block, index) => {
+                if (block.fit) {
+                    const originalFrame = block.data;
+                    const newX = block.fit.x + margin;
+                    const newY = block.fit.y + margin;
 
-            // 4. Actualizar las coordenadas de todos los frames.
-            AppState.frames.forEach(frame => {
-                frame.rect.x -= bBox.minX;
-                frame.rect.y -= bBox.minY;
+                    // Dibujar el sprite de la imagen vieja al nuevo canvas
+                    tempCtx.drawImage(DOM.imageDisplay, originalFrame.rect.x, originalFrame.rect.y, originalFrame.rect.w, originalFrame.rect.h, newX, newY, originalFrame.rect.w, originalFrame.rect.h);
+
+                    // Crear una nueva definición de frame simple para el nuevo layout
+                    newFrames.push({ id: index, name: originalFrame.name, rect: { x: newX, y: newY, w: originalFrame.rect.w, h: originalFrame.rect.h }, type: 'simple' });
+                }
             });
 
-            // 5. Actualizar la imagen principal y el estado.
+            const newImageURL = tempCanvas.toDataURL('image/png');
+
+            // 4. Iniciar la descarga de la nueva imagen.
+            const newFileName = `packed_${AppState.currentFileName}`;
+            const link = document.createElement('a');
+            link.href = newImageURL;
+            link.download = newFileName;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+            // 5. Reemplazar los frames y clips viejos con el nuevo layout simple
+            AppState.frames = newFrames; AppState.clips = []; AppState.activeClipId = null; AppState.selectedFrameId = null; AppState.selectedSubFrameId = null; AppState.subFrameOffsets = {};
+
+            // 6. Actualizar la imagen principal y el estado de la aplicación.
             this.isModifyingImage = true;
-            this.modificationMessage = 'Hoja de sprites recortada. La nueva imagen se ha descargado y ahora se usa en la aplicación.';
-            AppState.currentFileName = `trimmed_${AppState.currentFileName}`;
+            this.modificationMessage = 'Hoja de sprites re-empaquetada con margen. La nueva imagen se ha descargado y ahora se usa en la aplicación.';
+            AppState.currentFileName = newFileName;
             DOM.imageDisplay.src = newImageURL;
 
         } catch (error) {
-            console.error("Error recortando la hoja de sprites:", error);
-            UIManager.showToast('Ocurrió un error al recortar la imagen.', 'danger');
+            console.error("Error re-empaquetando la hoja de sprites:", error);
+            UIManager.showToast('Ocurrió un error al re-empaquetar la imagen.', 'danger');
             UIManager.hideLoader();
         }
     },
@@ -574,7 +646,7 @@ export const App = {
 
                 // Solo mostrar si el resultado es un tamaño válido
                 if (unifiedW > 0 && unifiedH > 0) {
-                    htmlContent += `<br><span class="unified-size-display">→ ${unifiedW}x${unifiedH}</span>`;
+                    htmlContent += `<br><span class="unified-size-display">→ ${Math.round(unifiedW)}x${Math.round(unifiedH)}</span>`;
                 }
             }
             dimensions.innerHTML = htmlContent;
@@ -604,10 +676,9 @@ export const App = {
         DOM.frameInspectorPanel.classList.remove('hidden');
 
         // --- NUEVO: Lógica para mostrar el tamaño recomendado ---
-        const animFrames = AppState.getAnimationFrames();
-        if (animFrames.length > 0) {
-            const maxWidth = Math.max(...animFrames.map(f => f.rect.w));
-            const maxHeight = Math.max(...animFrames.map(f => f.rect.h));
+        if (allFrames.length > 0) {
+            const maxWidth = Math.max(...allFrames.map(f => f.rect.w));
+            const maxHeight = Math.max(...allFrames.map(f => f.rect.h));
             
             DOM.recommendedSizeText.textContent = `${maxWidth} x ${maxHeight}px`;
             DOM.useRecommendedSizeBtn.dataset.w = maxWidth;
@@ -644,14 +715,14 @@ export const App = {
     },
 
     unifyFrameSizes() {
-        const animFrames = AppState.getAnimationFrames();
-        if (animFrames.length === 0) {
-            UIManager.showToast('No hay frames en el clip activo para unificar.', 'warning');
+        const allFrames = AppState.getFlattenedFrames();
+        if (allFrames.length === 0) {
+            UIManager.showToast('No hay frames para unificar.', 'warning');
             return;
         }
 
         // Esta acción ya no es destructiva, pero es bueno confirmar la sobreescritura de los offsets.
-        if (!confirm('Esto ajustará los offsets de todos los frames en el clip para que la animación tenga un tamaño consistente. Los offsets manuales existentes se sobrescribirán. Esta acción se puede deshacer (Ctrl+Z).\n\n¿Deseas continuar?')) {
+        if (!confirm('Esto ajustará los offsets de TODOS los frames para que tengan un tamaño de lienzo consistente. Los offsets manuales existentes se sobrescribirán. Esta acción se puede deshacer (Ctrl+Z).\n\n¿Deseas continuar?')) {
             return;
         }
 
@@ -659,11 +730,11 @@ export const App = {
         const inputH = parseInt(DOM.unifyHeightInput.value, 10);
 
         // Determinar el tamaño objetivo: entrada del usuario o el tamaño máximo de los frames en la animación.
-        const targetW = isNaN(inputW) || inputW <= 0 ? Math.max(...animFrames.map(f => f.rect.w)) : inputW;
-        const targetH = isNaN(inputH) || inputH <= 0 ? Math.max(...animFrames.map(f => f.rect.h)) : inputH;
+        const targetW = isNaN(inputW) || inputW <= 0 ? Math.max(...allFrames.map(f => f.rect.w)) : inputW;
+        const targetH = isNaN(inputH) || inputH <= 0 ? Math.max(...allFrames.map(f => f.rect.h)) : inputH;
 
         // Esta es ahora una operación no destructiva que funciona para TODOS los tipos de frames.
-        animFrames.forEach(frame => {
+        allFrames.forEach(frame => {
             const { w, h } = frame.rect;
 
             // Calcular el offset para centrar el frame dentro de las dimensiones objetivo.
@@ -671,12 +742,12 @@ export const App = {
             const offsetY = (targetH - h) / 2;
 
             // Almacenar el offset calculado. Se usará para la previsualización y exportación de la animación.
-            AppState.subFrameOffsets[frame.id] = { x: Math.round(offsetX), y: Math.round(offsetY) };
+            AppState.subFrameOffsets[frame.id] = { x: offsetX, y: offsetY };
         });
 
         HistoryManager.saveGlobalState(); // Guardar el nuevo estado en el historial.
         this.updateAll(false); // Actualizar toda la UI.
-        this.closeFrameInspector(); // Cerrar el inspector para mostrar el resultado en el lienzo principal.
+        this.openFrameInspector(); // Reabrir/refrescar el inspector para ver los cambios.
         UIManager.showToast(`Tamaño de animación unificado a ${targetW}x${targetH}px (vía offsets).`, 'success');
     },
 
@@ -699,7 +770,7 @@ export const App = {
             else if (alignMode.includes('bottom')) { offsetY = maxHeight - h; } 
             else { offsetY = (maxHeight - h) / 2; } // middle or center
 
-            AppState.subFrameOffsets[frame.id] = { x: Math.round(offsetX), y: Math.round(offsetY) };
+            AppState.subFrameOffsets[frame.id] = { x: offsetX, y: offsetY };
         });
 
         HistoryManager.saveGlobalState();

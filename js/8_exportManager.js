@@ -43,8 +43,8 @@ const ExportManager = (() => {
             const { x, y, w, h } = frame.rect;
             const percentage = (index / frameCount) * 100;
             // 2. Calcular la traslación relativa al bounding box de la animación.
-            const translateX = Math.round(-frame.offset.x - animBBox.minX);
-            const translateY = Math.round(-frame.offset.y - animBBox.minY);
+            const translateX = -frame.offset.x - animBBox.minX;
+            const translateY = -frame.offset.y - animBBox.minY;
             return `    ${percentage.toFixed(2)}% { width: ${w}px; height: ${h}px; background-position: -${x}px -${y}px; transform: translate(${translateX}px, ${translateY}px); }`;
         }).join('\n');
 
@@ -52,8 +52,8 @@ const ExportManager = (() => {
         // El keyframe del 100% debe ser una copia del último frame para que se mantenga hasta el final,
         // antes de que la animación se reinicie en el primer frame.
         const lastFrame = animFrames[animFrames.length - 1];
-        const lastTranslateX = Math.round(-lastFrame.offset.x - animBBox.minX);
-        const lastTranslateY = Math.round(-lastFrame.offset.y - animBBox.minY);
+        const lastTranslateX = -lastFrame.offset.x - animBBox.minX;
+        const lastTranslateY = -lastFrame.offset.y - animBBox.minY;
 
         const cssCode = `/* Estilos para la página de demostración */
 body {
