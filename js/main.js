@@ -123,6 +123,15 @@ export const App = {
     isReloadingFromStorage: false,
     isModifyingImage: false,
     modificationMessage: null,
+    offsetEditorState: {
+        isOpen: false,
+        targetFrameId: null,
+        tempOffset: { x: 0, y: 0 },
+        isDragging: false,
+        dragStartPos: { x: 0, y: 0 },
+        initialOffset: { x: 0, y: 0 },
+        canvasSize: { w: 0, h: 0 }
+    },
 
     init() {
         console.log("Aplicación Sprite Sheet iniciada.");
@@ -244,6 +253,18 @@ export const App = {
             DOM.unifyWidthInput.value = DOM.useRecommendedSizeBtn.dataset.w;
             DOM.unifyHeightInput.value = DOM.useRecommendedSizeBtn.dataset.h;
         });
+
+        // --- NUEVO: Listeners para los controles de alineación de unificación ---
+        document.querySelectorAll('.segmented-control').forEach(group => {
+            group.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    // Quitar 'active' de los hermanos
+                    Array.from(group.children).forEach(btn => btn.classList.remove('active'));
+                    // Añadir 'active' al botón clicado
+                    e.target.classList.add('active');
+                }
+            });
+        });
         // --- FIN ---
         DOM.autoDetectButton.addEventListener('click', () => this.detectSprites());
         DOM.autoDetectToolButton.addEventListener('click', () => this.detectSprites());
@@ -327,6 +348,60 @@ export const App = {
         DOM.clearButton.addEventListener('click', () => { if(confirm('¿Seguro?')) this.clearAll(false); });
         DOM.lockFramesButton.addEventListener('click', () => this.toggleLock());
         DOM.fullscreenButton.addEventListener('click', () => this.toggleFullscreen());
+
+        // --- NUEVO: Listeners para el Editor de Offset ---
+        DOM.closeOffsetEditorModalBtn.addEventListener('click', () => this.closeOffsetEditor());
+        DOM.cancelOffsetEditorBtn.addEventListener('click', () => this.closeOffsetEditor());
+        DOM.saveOffsetEditorBtn.addEventListener('click', () => this.saveOffsetChanges());
+        DOM.unifyFromEditorBtn.addEventListener('click', () => this.unifyFromEditor());
+
+        // Listeners para los inputs del modal
+        [
+            DOM.offsetEditorCanvasWidthInput, 
+            DOM.offsetEditorCanvasHeightInput, 
+            DOM.offsetEditorXInput, 
+            DOM.offsetEditorYInput
+        ].forEach(input => {
+            input.addEventListener('change', () => this.updateOffsetEditorFromInputs());
+        });
+
+        // Listeners para arrastrar en el canvas del modal
+        const offsetCanvas = DOM.offsetEditorCanvas;
+
+        offsetCanvas.addEventListener('mousedown', (e) => {
+            const state = this.offsetEditorState;
+            if (!state.isOpen) return;
+            
+            state.isDragging = true;
+            const rect = offsetCanvas.getBoundingClientRect();
+            state.dragStartPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            state.initialOffset = { ...state.tempOffset };
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            const state = this.offsetEditorState;
+            if (!state.isOpen || !state.isDragging) return;
+
+            const rect = offsetCanvas.getBoundingClientRect();
+            const currentPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            
+            const scale = (state.canvasSize.w > 0) ? (offsetCanvas.width / state.canvasSize.w) : 1;
+            const dx = (currentPos.x - state.dragStartPos.x) / scale;
+            const dy = (currentPos.y - state.dragStartPos.y) / scale;
+
+            state.tempOffset.x = state.initialOffset.x + dx;
+            state.tempOffset.y = state.initialOffset.y + dy;
+
+            this.drawOffsetEditorCanvas();
+            this.updateOffsetEditorInputs();
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (this.offsetEditorState.isDragging) {
+                this.offsetEditorState.isDragging = false;
+                this.updateOffsetEditorInputs(true); // Redondear al soltar
+            }
+        });
     },
     
     loadProjectState(state) {
@@ -566,7 +641,6 @@ export const App = {
         }
     },
 
-    // --- NUEVO: Funciones del Inspector de Frames ---
     openFrameInspector() {
         const INSPECTOR_THUMB_SIZE = 100; // Tamaño máximo para las miniaturas en píxeles
         const allFrames = AppState.getFlattenedFrames();
@@ -611,6 +685,21 @@ export const App = {
                 this.updateAll(true); // Guardar y actualizar la lista de frames del panel derecho
             });
             card.appendChild(checkbox);
+
+            // --- NUEVO: Botón de Edición Visual de Offset ---
+            const cardActions = document.createElement('div');
+            cardActions.className = 'card-actions';
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-offset-btn';
+            editBtn.textContent = '✏️';
+            editBtn.title = 'Editar posición visualmente';
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Evitar que el clic se propague a otros elementos
+                this.openOffsetEditor(frame.id);
+            });
+            cardActions.appendChild(editBtn);
+            card.appendChild(cardActions);
 
             const canvasContainer = document.createElement('div');
             canvasContainer.className = 'canvas-container';
@@ -691,6 +780,146 @@ export const App = {
 
     closeFrameInspector() { DOM.frameInspectorPanel.classList.add('hidden'); },
 
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`Error al intentar entrar en pantalla completa: ${err.message} (${err.name})`);
+            });
+        } else { document.exitFullscreen(); }
+    },
+
+    // --- NUEVO: Funciones del Editor de Offset Visual ---
+    openOffsetEditor(frameId) {
+        const frame = AppState.getFlattenedFrames().find(f => f.id === frameId);
+        if (!frame) {
+            UIManager.showToast('No se encontró el frame para editar.', 'danger');
+            return;
+        }
+
+        const state = this.offsetEditorState;
+        state.isOpen = true;
+        state.targetFrameId = frameId;
+        state.initialOffset = { ...frame.offset };
+        state.tempOffset = { ...frame.offset };
+
+        // Usar el tamaño unificado si está definido, si no, el tamaño máximo de todos los frames
+        const allFrames = AppState.getFlattenedFrames();
+        const inputW = parseInt(DOM.unifyWidthInput.value, 10);
+        const inputH = parseInt(DOM.unifyHeightInput.value, 10);
+        const targetW = isNaN(inputW) || inputW <= 0 ? Math.max(...allFrames.map(f => f.rect.w)) : inputW;
+        const targetH = isNaN(inputH) || inputH <= 0 ? Math.max(...allFrames.map(f => f.rect.h)) : inputH;
+        
+        state.canvasSize = { w: targetW, h: targetH };
+
+        // Configurar el modal
+        DOM.offsetEditorTitle.textContent = `Editar Posición: ${frame.name}`;
+        DOM.offsetEditorModal.classList.remove('hidden');
+
+        DOM.offsetEditorCanvasWidthInput.value = Math.round(state.canvasSize.w);
+        DOM.offsetEditorCanvasHeightInput.value = Math.round(state.canvasSize.h);
+
+        // Configurar el canvas
+        const canvas = DOM.offsetEditorCanvas;
+        const maxCanvasDim = 400; // Límite para que no sea gigante
+        const scale = Math.min(maxCanvasDim / state.canvasSize.w, maxCanvasDim / state.canvasSize.h);
+        canvas.width = state.canvasSize.w * scale;
+        canvas.height = state.canvasSize.h * scale;
+        
+        this.drawOffsetEditorCanvas();
+        this.updateOffsetEditorInputs();
+    },
+
+    closeOffsetEditor() {
+        this.offsetEditorState.isOpen = false;
+        DOM.offsetEditorModal.classList.add('hidden');
+    },
+
+    drawOffsetEditorCanvas() {
+        const state = this.offsetEditorState;
+        if (!state.isOpen || !state.canvasSize.w || !state.canvasSize.h) return;
+
+        const frame = AppState.getFlattenedFrames().find(f => f.id === state.targetFrameId);
+        if (!frame) return;
+
+        const canvas = DOM.offsetEditorCanvas;
+        const ctx = canvas.getContext('2d');
+        const scale = (state.canvasSize.w > 0) ? (canvas.width / state.canvasSize.w) : 1;
+
+        // 1. Limpiar y dibujar fondo
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#444'; // Un fondo oscuro para contraste
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Dibujar el sprite
+        const { x, y, w, h } = frame.rect;
+        const drawW = w * scale;
+        const drawH = h * scale;
+        // La posición de dibujado es el offset temporal, escalado
+        const drawX = state.tempOffset.x * scale;
+        const drawY = state.tempOffset.y * scale;
+
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(DOM.imageDisplay, x, y, w, h, drawX, drawY, drawW, drawH);
+
+        // 3. Dibujar el borde del lienzo de animación
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 2]);
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        ctx.setLineDash([]);
+    },
+
+    updateOffsetEditorInputs(round = false) {
+        const state = this.offsetEditorState;
+        if (round) {
+            state.tempOffset.x = parseFloat(state.tempOffset.x.toFixed(1));
+            state.tempOffset.y = parseFloat(state.tempOffset.y.toFixed(1));
+        }
+        DOM.offsetEditorXInput.value = state.tempOffset.x;
+        DOM.offsetEditorYInput.value = state.tempOffset.y;
+    },
+
+    updateOffsetEditorFromInputs() {
+        const state = this.offsetEditorState;
+        if (!state.isOpen) return;
+
+        // Actualizar tamaño de lienzo desde los inputs
+        state.canvasSize.w = parseInt(DOM.offsetEditorCanvasWidthInput.value, 10) || 0;
+        state.canvasSize.h = parseInt(DOM.offsetEditorCanvasHeightInput.value, 10) || 0;
+        
+        // Actualizar offset desde los inputs
+        state.tempOffset.x = parseFloat(DOM.offsetEditorXInput.value) || 0;
+        state.tempOffset.y = parseFloat(DOM.offsetEditorYInput.value) || 0;
+
+        this.drawOffsetEditorCanvas();
+    },
+
+    saveOffsetChanges() {
+        const state = this.offsetEditorState;
+        if (!state.targetFrameId) return;
+
+        // Aplicar el offset final
+        AppState.subFrameOffsets[state.targetFrameId] = { ...state.tempOffset };
+        
+        HistoryManager.saveGlobalState();
+        this.updateAll(false);
+        this.openFrameInspector(); // Refrescar el inspector para ver el cambio
+        this.closeOffsetEditor();
+        UIManager.showToast('Posición del frame actualizada.', 'success');
+    },
+
+    unifyFromEditor() {
+        const state = this.offsetEditorState;
+        if (!state.isOpen) return;
+
+        // Transferir valores del modal al inspector principal
+        DOM.unifyWidthInput.value = state.canvasSize.w;
+        DOM.unifyHeightInput.value = state.canvasSize.h;
+
+        this.closeOffsetEditor();
+        this.unifyFrameSizes(); // Esta función ya tiene su propio diálogo de confirmación
+    },
+
     inspectorAddAllToClip() {
         const clip = AppState.getActiveClip();
         if (!clip) { UIManager.showToast('No hay un clip activo seleccionado.', 'warning'); return; }
@@ -729,6 +958,10 @@ export const App = {
         const inputW = parseInt(DOM.unifyWidthInput.value, 10);
         const inputH = parseInt(DOM.unifyHeightInput.value, 10);
 
+        // --- NUEVO: Obtener la alineación seleccionada ---
+        const alignY = DOM.frameInspectorPanel.querySelector('#unify-align-y .active').dataset.align;
+        const alignX = DOM.frameInspectorPanel.querySelector('#unify-align-x .active').dataset.align;
+
         // Determinar el tamaño objetivo: entrada del usuario o el tamaño máximo de los frames en la animación.
         const targetW = isNaN(inputW) || inputW <= 0 ? Math.max(...allFrames.map(f => f.rect.w)) : inputW;
         const targetH = isNaN(inputH) || inputH <= 0 ? Math.max(...allFrames.map(f => f.rect.h)) : inputH;
@@ -737,9 +970,36 @@ export const App = {
         allFrames.forEach(frame => {
             const { w, h } = frame.rect;
 
-            // Calcular el offset para centrar el frame dentro de las dimensiones objetivo.
-            const offsetX = (targetW - w) / 2;
-            const offsetY = (targetH - h) / 2;
+            // --- MODIFICADO: Calcular offsets según la alineación ---
+            let offsetX, offsetY;
+
+            // Cálculo de Offset X (Horizontal)
+            switch (alignX) {
+                case 'left':
+                    offsetX = 0;
+                    break;
+                case 'right':
+                    offsetX = targetW - w;
+                    break;
+                case 'center':
+                default:
+                    offsetX = (targetW - w) / 2;
+                    break;
+            }
+
+            // Cálculo de Offset Y (Vertical)
+            switch (alignY) {
+                case 'top':
+                    offsetY = 0;
+                    break;
+                case 'bottom':
+                    offsetY = targetH - h;
+                    break;
+                case 'center':
+                default:
+                    offsetY = (targetH - h) / 2;
+                    break;
+            }
 
             // Almacenar el offset calculado. Se usará para la previsualización y exportación de la animación.
             AppState.subFrameOffsets[frame.id] = { x: offsetX, y: offsetY };
@@ -747,7 +1007,7 @@ export const App = {
 
         HistoryManager.saveGlobalState(); // Guardar el nuevo estado en el historial.
         this.updateAll(false); // Actualizar toda la UI.
-        this.openFrameInspector(); // Reabrir/refrescar el inspector para ver los cambios.
+        this.closeFrameInspector(); // Cerrar el inspector para ver el cambio en la previsualización.
         UIManager.showToast(`Tamaño de animación unificado a ${targetW}x${targetH}px (vía offsets).`, 'success');
     },
 
@@ -776,14 +1036,6 @@ export const App = {
         HistoryManager.saveGlobalState();
         this.updateAll(false);
         UIManager.showToast(`Frames alineados (offset) a: ${alignMode}.`, 'success');
-    },
-
-    toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                alert(`Error al intentar entrar en pantalla completa: ${err.message} (${err.name})`);
-            });
-        } else { document.exitFullscreen(); }
     },
 
     generateByGrid() {

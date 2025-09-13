@@ -191,6 +191,14 @@ button.icon-btn { padding: 5px; line-height: 0; }
 button.icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
 button.small-action { padding: 2px 8px; font-size: 11px; flex-grow: 1; }
 
+button.secondary-btn {
+    background-color: transparent;
+    border-color: var(--ps-border-light);
+}
+button.secondary-btn:hover {
+    background-color: var(--ps-button-bg);
+}
+
 input[type="number"], select { background-color: var(--ps-input-bg); border: 1px solid var(--ps-border-dark); color: var(--ps-text-light); border-radius: 3px; padding: 4px; width: 100%; }
 input[type="range"] { width: 100%; }
 select { width: 100%; flex-grow: 1; }
@@ -595,6 +603,62 @@ select { width: 100%; flex-grow: 1; }
     color: white; border: none; flex-shrink: 0; margin-left: 10px;
 }
 
+.unify-align-controls {
+    margin-bottom: 10px;
+}
+
+.segmented-control {
+    display: flex;
+    background-color: var(--ps-bg-dark);
+    border-radius: 4px;
+    border: 1px solid var(--ps-border-dark);
+    overflow: hidden;
+}
+
+.segmented-control button {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 4px 10px;
+    font-size: 11px;
+    border-left: 1px solid var(--ps-border-dark);
+}
+
+.segmented-control button:first-child {
+    border-left: none;
+}
+
+.segmented-control button.active {
+    background-color: var(--ps-accent-blue);
+    color: white;
+}
+
+.inspector-card .card-actions {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.inspector-card .edit-offset-btn {
+    background-color: rgba(0,0,0,0.3);
+    border: 1px solid var(--ps-border-light);
+    color: var(--ps-text-medium);
+    padding: 2px 4px;
+    font-size: 10px;
+    line-height: 1;
+    visibility: hidden; /* Hide by default */
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.inspector-card:hover .edit-offset-btn {
+    visibility: visible;
+    opacity: 1;
+}
+
 .inspector-card {
     background-color: var(--ps-bg-panel);
     border: 1px solid var(--ps-border-dark);
@@ -665,4 +729,9 @@ select { width: 100%; flex-grow: 1; }
     color: var(--primary);
     font-weight: normal;
     font-size: 10px;
+}
+
+#offset-editor-canvas {
+    cursor: move;
+    image-rendering: pixelated;
 }

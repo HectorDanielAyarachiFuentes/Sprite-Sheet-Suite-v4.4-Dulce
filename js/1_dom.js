@@ -94,6 +94,18 @@ export const DOM = {
     inspectorRemoveAllButton: document.getElementById('inspector-remove-all-button'),
     inspectorGrid: document.getElementById('inspector-grid'),
     // --- FIN ---
+    // --- NUEVO: Editor de Offset ---
+    offsetEditorModal: document.getElementById('offset-editor-modal'),
+    offsetEditorTitle: document.getElementById('offset-editor-title'),
+    offsetEditorCanvas: document.getElementById('offset-editor-canvas'),
+    offsetEditorCanvasWidthInput: document.getElementById('offset-editor-canvas-width'),
+    offsetEditorCanvasHeightInput: document.getElementById('offset-editor-canvas-height'),
+    offsetEditorXInput: document.getElementById('offset-editor-x'),
+    offsetEditorYInput: document.getElementById('offset-editor-y'),
+    saveOffsetEditorBtn: document.getElementById('save-offset-editor-btn'),
+    cancelOffsetEditorBtn: document.getElementById('cancel-offset-editor-btn'),
+    closeOffsetEditorModalBtn: document.getElementById('close-offset-editor-modal'),
+    unifyFromEditorBtn: document.getElementById('unify-from-editor-btn'),
     loadingOverlay: document.getElementById('loading-overlay'),
     allControls: document.querySelectorAll('button, input, select'),
 };

@@ -9,7 +9,7 @@ import { UIManager } from './4_uiManager.js';
 const SessionManager = (() => {
     // --- NUEVO --- Variable para evitar toasts repetidos de error de cuota
     let quotaErrorShown = false;
-    const MAX_HISTORY_ITEMS = 3; // Reducir para ahorrar espacio
+    const MAX_HISTORY_ITEMS = 2; // Reducido para ahorrar espacio y evitar errores de cuota
 
     // --- NUEVO --- Función centralizada para guardar con manejo de errores
     const _safeSetItem = (key, value) => {
@@ -59,13 +59,7 @@ const SessionManager = (() => {
 
             if (includeImage) {
                 state.imageSrc = DOM.imageDisplay.src;
-            } else {
-                // Si no incluimos la imagen ahora, preservamos la que ya estaba guardada.
-                const lastSession = JSON.parse(localStorage.getItem('spriteSheetLastSession') || '{}');
-                if (lastSession.imageSrc) {
-                    state.imageSrc = lastSession.imageSrc;
-                }
-            }
+            } 
             
             _safeSetItem('spriteSheetLastSession', JSON.stringify(state));
         },

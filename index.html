@@ -396,6 +396,19 @@
                     <p>Recomendación (tamaño máximo): <strong id="recommended-size-text"></strong></p>
                     <button id="use-recommended-size-btn">Usar</button>
                 </div>
+                <div class="input-group unify-align-controls">
+                    <label>Alineación:</label>
+                    <div class="segmented-control" id="unify-align-y">
+                        <button data-align="top" title="Alinear Arriba">T</button>
+                        <button data-align="center" class="active" title="Alinear Centro">C</button>
+                        <button data-align="bottom" title="Alinear Abajo">B</button>
+                    </div>
+                    <div class="segmented-control" id="unify-align-x">
+                        <button data-align="left" title="Alinear Izquierda">L</button>
+                        <button data-align="center" class="active" title="Alinear Centro">C</button>
+                        <button data-align="right" title="Alinear Derecha">R</button>
+                    </div>
+                </div>
                 <div class="input-group">
                     <label>Ancho:</label><input type="number" id="unify-width-input" min="1" placeholder="auto">
                     <label>Alto:</label><input type="number" id="unify-height-input" min="1" placeholder="auto">
@@ -406,6 +419,49 @@
         </div>
         <div id="inspector-grid" class="inspector-grid">
             <!-- Los frames se generarán aquí con JS -->
+        </div>
+    </div>
+
+    <!-- ===== NUEVO: MODAL EDITOR DE OFFSET VISUAL ===== -->
+    <div id="offset-editor-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="offset-editor-title">Editar Posición de Frame</h2>
+                <button id="close-offset-editor-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p class="help-text">Arrastra el sprite para ajustar su posición y/o cambia el tamaño del lienzo de la animación.</p>
+                <div id="offset-editor-canvas-container" style="background-color: var(--ps-bg-dark); border: 1px solid var(--ps-border-dark); display: inline-block; margin-bottom: 15px;">
+                    <canvas id="offset-editor-canvas" width="300" height="300"></canvas>
+                </div>
+                <div class="input-group" style="justify-content: center; flex-wrap: wrap; gap: 15px;">
+                    <div class="input-group">
+                        <label for="offset-editor-canvas-width">Ancho Lienzo:</label>
+                        <input type="number" id="offset-editor-canvas-width" step="1" style="width: 80px;">
+                    </div>
+                    <div class="input-group">
+                        <label for="offset-editor-canvas-height">Alto Lienzo:</label>
+                        <input type="number" id="offset-editor-canvas-height" step="1" style="width: 80px;">
+                    </div>
+                </div>
+                <div class="input-group" style="justify-content: center; flex-wrap: wrap; gap: 15px;">
+                    <div class="input-group">
+                    <label for="offset-editor-x">Offset X:</label>
+                    <input type="number" id="offset-editor-x" step="0.5" style="width: 80px;">
+                    </div>
+                    <div class="input-group">
+                    <label for="offset-editor-y">Offset Y:</label>
+                    <input type="number" id="offset-editor-y" step="0.5" style="width: 80px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <button id="unify-from-editor-btn" class="secondary-btn">Aplicar Tamaño a Todos</button>
+                <div>
+                    <button id="cancel-offset-editor-btn" class="secondary-btn">Cancelar</button>
+                    <button id="save-offset-editor-btn">Guardar Cambios</button>
+                </div>
+            </div>
         </div>
     </div>
 
