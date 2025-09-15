@@ -56,6 +56,14 @@ Dentro de la carpeta `img-md/` encontrarás varias hojas de sprites listas para 
 
 ---
 
+## 🧠 Explicación del Código
+
+¿Quieres una explicación detallada de cómo funciona el código de este proyecto? Haz clic en el siguiente botón para ver una documentación interactiva generada con DeepWiki.
+
+[![Explicación del Código](https://img.shields.io/badge/Explicación_del_Código-DeepWiki-blue?style=for-the-badge)](https://deepwiki.com/search/que-te-parece-el-codigo_759e5f6a-1a25-4d8c-b326-4ab9fb5fe169)
+
+---
+
 ## 👨‍💻 Sobre el Autor
 
 Esta herramienta fue creada con pasión por **Héctor Daniel Ayarachi Fuentes**. Si te ha gustado este proyecto, puedes ver más de mi trabajo en mis perfiles:
