@@ -128,9 +128,13 @@
                 <div class="input-group"><label for="remove-bg-tolerance">Tolerancia:</label><input type="number" id="remove-bg-tolerance" value="20" min="0" max="255" title="Qué tan diferente debe ser un color del fondo para ser considerado parte de un sprite (0 = solo colores exactos)."></div>
                 <div class="input-group"><label for="remove-bg-smooth-intensity">Suavizado:</label><select id="remove-bg-smooth-intensity" title="Intensidad del suavizado de bordes"><option value="none">Ninguno</option><option value="low">Bajo</option><option value="medium" selected>Medio</option><option value="high">Alto</option></select></div>
                 <div class="help-text-popup">
-                    <b>Bajo:</b> Un retoque sutil, ideal para imágenes con bordes ya bastante definidos.<br>
-                    <b>Medio:</b> El equilibrio perfecto, similar al efecto anterior.<br>
-                    <b>Alto:</b> Un suavizado más agresivo, perfecto para imágenes con mucho "halo" o bordes muy difuminados.
+                    <b>Tolerancia:</b> Un valor de <b>0</b> solo borra píxeles idénticos al fondo. Un valor más <b>alto</b> (ej. 20) borra colores similares, útil para imágenes con bordes suavizados (anti-aliasing) o compresión JPG.<br><br>
+                    <b>Suavizado de Bordes:</b>
+                    <ul>
+                        <li><b>Bajo:</b> Un retoque sutil para bordes ya definidos.</li>
+                        <li><b>Medio:</b> El equilibrio perfecto para la mayoría de casos.</li>
+                        <li><b>Alto:</b> Un suavizado agresivo para bordes con mucho "halo" de color.</li>
+                    </ul>
                 </div>
                 <button id="apply-remove-bg-button">Aplicar</button>
             </div>

@@ -584,9 +584,28 @@ export const App = {
             this.hideActivePopup();
         } else {
             this.hideActivePopup(); // Ocultar cualquier otro popup abierto
+            const popup = DOM.removeBgPopup;
             const buttonRect = DOM.removeBgToolButton.getBoundingClientRect();
-            popup.style.top = `${buttonRect.top}px`;
-            popup.style.left = `${buttonRect.right + 10}px`;
+            const margin = 10;
+
+            // Medimos la altura del popup (offsetHeight funciona aunque tenga opacity: 0)
+            const popupHeight = popup.offsetHeight;
+            const windowHeight = window.innerHeight;
+
+            // Posición vertical inicial (alineado con el botón)
+            let topPos = buttonRect.top;
+
+            // Comprobar si se desborda por la parte inferior
+            if (topPos + popupHeight + margin > windowHeight) {
+                // Si se desborda, lo alineamos con la parte de abajo de la pantalla
+                topPos = windowHeight - popupHeight - margin;
+            }
+
+            // Asegurarse de que no se desborde por la parte superior
+            topPos = Math.max(margin, topPos);
+
+            popup.style.top = `${topPos}px`;
+            popup.style.left = `${buttonRect.right + margin}px`;
             popup.classList.remove('hidden');
             this.activeToolPopup = popup;
         }

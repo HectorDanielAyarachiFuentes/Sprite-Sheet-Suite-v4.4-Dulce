@@ -158,6 +158,15 @@ p { margin: 0; }
     margin-bottom: 15px;
 }
 .help-text-popup { font-size: 11px; color: var(--ps-text-medium); margin-bottom: 15px; line-height: 1.4; }
+.help-text-popup ul {
+    padding-left: 15px;
+    margin: 5px 0 0 0;
+    list-style-type: disc;
+}
+.help-text-popup li {
+    margin-bottom: 3px;
+}
+.help-text-popup b { color: var(--ps-text-light); }
 
 /* --- Workspace --- */
 .workspace { background-color: var(--ps-bg); display: flex; flex-direction: column; min-width: 0; padding: 10px; }
