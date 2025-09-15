@@ -636,77 +636,93 @@ export const App = {
             return;
         }
 
-        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto re-empaquetará todos los sprites en una nueva hoja con un margen de 3px. Se perderá la estructura de grupos y clips. La nueva imagen se descargará y reemplazará a la actual.\n\n¿Deseas continuar?')) {
+        if (!confirm('¡ACCIÓN DESTRUCTIVA!\n\nEsto creará una nueva hoja de sprites organizando todos los frames en una parrilla. Cada frame se alineará en una celda de tamaño uniforme para evitar saltos en animaciones. Se perderá la estructura de grupos y clips. La nueva imagen se descargará y reemplazará a la actual.\n\n¿Deseas continuar?')) {
             return;
         }
 
-        UIManager.showLoader('Re-empaquetando hoja de sprites...');
+        UIManager.showLoader('Organizando sprites en parrilla...');
         await new Promise(resolve => setTimeout(resolve, 50));
 
         try {
-            const margin = 3;
+            // 1. Encontrar dimensiones máximas para crear celdas uniformes
+            const maxWidth = Math.max(...allFrames.map(f => f.rect.w));
+            const maxHeight = Math.max(...allFrames.map(f => f.rect.h));
 
-            // 1. Preparar bloques para el empaquetador
-            const blocks = allFrames.map(frame => ({
-                w: frame.rect.w + margin * 2,
-                h: frame.rect.h + margin * 2,
-                data: frame // Mantener referencia al frame original
-            }));
+            // 2. Configurar el layout de la parrilla
+            const margin = 5; // Espacio extra alrededor de cada sprite dentro de su celda
+            const cellWidth = maxWidth + margin * 2;
+            const cellHeight = maxHeight + margin * 2;
+            const numFrames = allFrames.length;
 
-            // Ordenar bloques por lado máximo para mejor eficiencia de empaquetado
-            blocks.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h));
+            // Intentar que la parrilla sea más ancha que alta, si es posible
+            const cols = Math.ceil(Math.sqrt(numFrames * (cellHeight / cellWidth)));
+            const rows = Math.ceil(numFrames / cols);
 
-            // 2. Usar el empaquetador para obtener el nuevo layout
-            const packer = new GrowingPacker();
-            packer.fit(blocks);
+            const newWidth = cols * cellWidth;
+            const newHeight = rows * cellHeight;
 
-            const newWidth = packer.root.w;
-            const newHeight = packer.root.h;
+            if (newWidth <= 0 || newHeight <= 0) throw new Error("El área de la nueva parrilla es inválida.");
 
-            if (newWidth <= 0 || newHeight <= 0) throw new Error("El área de empaquetado es inválida.");
-
-            // 3. Crear un nuevo canvas y dibujar los sprites en sus nuevas posiciones
+            // 3. Crear el nuevo canvas y el array para los nuevos frames
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = newWidth;
             tempCanvas.height = newHeight;
             const tempCtx = tempCanvas.getContext('2d');
             const newFrames = [];
 
-            blocks.forEach((block, index) => {
-                if (block.fit) {
-                    const originalFrame = block.data;
-                    const newX = block.fit.x + margin;
-                    const newY = block.fit.y + margin;
+            // 4. Iterar sobre los frames originales, dibujarlos en la nueva parrilla y crear las nuevas definiciones de frame
+            allFrames.forEach((originalFrame, index) => {
+                const gridX = index % cols;
+                const gridY = Math.floor(index / cols);
 
-                    // Dibujar el sprite de la imagen vieja al nuevo canvas
-                    tempCtx.drawImage(DOM.imageDisplay, originalFrame.rect.x, originalFrame.rect.y, originalFrame.rect.w, originalFrame.rect.h, newX, newY, originalFrame.rect.w, originalFrame.rect.h);
+                // Calcular la posición de dibujado DENTRO de la celda para alinear al centro-abajo
+                const drawX = (gridX * cellWidth) + margin + ((maxWidth - originalFrame.rect.w) / 2);
+                const drawY = (gridY * cellHeight) + margin + (maxHeight - originalFrame.rect.h);
 
-                    // Crear una nueva definición de frame simple para el nuevo layout
-                    newFrames.push({ id: index, name: originalFrame.name, rect: { x: newX, y: newY, w: originalFrame.rect.w, h: originalFrame.rect.h }, type: 'simple' });
-                }
+                // Dibujar el sprite de la imagen vieja al nuevo canvas en su posición alineada
+                tempCtx.drawImage(
+                    DOM.imageDisplay,
+                    originalFrame.rect.x, originalFrame.rect.y, originalFrame.rect.w, originalFrame.rect.h,
+                    drawX, drawY, originalFrame.rect.w, originalFrame.rect.h
+                );
+
+                // Crear una nueva definición de frame simple que ocupe TODA la celda.
+                // Esto crea la parrilla editable que el usuario quiere.
+                const newFrameRect = {
+                    x: gridX * cellWidth,
+                    y: gridY * cellHeight,
+                    w: cellWidth,
+                    h: cellHeight
+                };
+                newFrames.push({
+                    id: index,
+                    name: originalFrame.name,
+                    rect: newFrameRect,
+                    type: 'simple'
+                });
             });
 
             const newImageURL = tempCanvas.toDataURL('image/png');
 
-            // 4. Iniciar la descarga de la nueva imagen.
-            const newFileName = `packed_${AppState.currentFileName}`;
+            // 5. Iniciar la descarga de la nueva imagen.
+            const newFileName = `gridded_${AppState.currentFileName}`;
             const link = document.createElement('a');
             link.href = newImageURL;
             link.download = newFileName;
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
 
-            // 5. Reemplazar los frames y clips viejos con el nuevo layout simple
+            // 6. Reemplazar los frames y clips viejos con el nuevo layout simple
             AppState.frames = newFrames; AppState.clips = []; AppState.activeClipId = null; AppState.selectedFrameId = null; AppState.selectedSubFrameId = null; AppState.subFrameOffsets = {};
 
-            // 6. Actualizar la imagen principal y el estado de la aplicación.
+            // 7. Actualizar la imagen principal y el estado de la aplicación.
             this.isModifyingImage = true;
-            this.modificationMessage = 'Hoja de sprites re-empaquetada con margen. La nueva imagen se ha descargado y ahora se usa en la aplicación.';
+            this.modificationMessage = 'Hoja de sprites reorganizada en una parrilla. La nueva imagen se ha descargado y ahora se usa en la aplicación.';
             AppState.currentFileName = newFileName;
             DOM.imageDisplay.src = newImageURL;
 
         } catch (error) {
-            console.error("Error re-empaquetando la hoja de sprites:", error);
-            UIManager.showToast('Ocurrió un error al re-empaquetar la imagen.', 'danger');
+            console.error("Error reorganizando la hoja de sprites:", error);
+            UIManager.showToast('Ocurrió un error al reorganizar la imagen.', 'danger');
             UIManager.hideLoader();
         }
     },
