@@ -606,11 +606,68 @@ export const App = {
 
             const bgColor = detectBackgroundColor(data, w, h);
             const tolerance = parseInt(DOM.autoDetectToleranceInput.value, 10);
+            const shouldSmooth = DOM.smoothEdgesCheckbox.checked;
 
             for (let i = 0; i < data.length; i += 4) {
                 if (isBackgroundColor(data, i, bgColor, tolerance)) {
                     data[i + 3] = 0; // Set alpha to 0
                 }
+            }
+
+            // --- NUEVO: Suavizado de bordes opcional ---
+            if (shouldSmooth) {
+                const newData = new Uint8ClampedArray(data); // Trabajar sobre una copia para leer los datos originales
+                const alphaThreshold = 10; // Píxeles por debajo de este alfa se consideran fondo
+
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        const i = (y * w + x) * 4;
+
+                        // Si el píxel actual es parte del sprite (no es transparente)
+                        if (data[i + 3] > alphaThreshold) {
+                            let transparentNeighbors = 0;
+                            let solidNeighborCount = 0;
+                            let avgR = 0, avgG = 0, avgB = 0;
+
+                            // Revisar vecinos en 8 direcciones (3x3)
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    if (dx === 0 && dy === 0) continue;
+                                    const nx = x + dx;
+                                    const ny = y + dy;
+
+                                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                        const ni = (ny * w + nx) * 4;
+                                        if (data[ni + 3] < alphaThreshold) {
+                                            transparentNeighbors++;
+                                        } else {
+                                            solidNeighborCount++;
+                                            avgR += data[ni];
+                                            avgG += data[ni + 1];
+                                            avgB += data[ni + 2];
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Si es un píxel de borde (tiene vecinos transparentes)
+                            if (transparentNeighbors > 0) {
+                                // Suavizar color para mitigar el halo (si hay vecinos sólidos para promediar)
+                                if (solidNeighborCount > 0) {
+                                    newData[i] = (data[i] + (avgR / solidNeighborCount)) / 2;
+                                    newData[i+1] = (data[i+1] + (avgG / solidNeighborCount)) / 2;
+                                    newData[i+2] = (data[i+2] + (avgB / solidNeighborCount)) / 2;
+                                }
+                                
+                                // Suavizar alfa (feathering)
+                                const solidRatio = solidNeighborCount / (solidNeighborCount + transparentNeighbors);
+                                newData[i + 3] = data[i + 3] * Math.sqrt(solidRatio);
+                            }
+                        }
+                    }
+                }
+                // Copiar los datos suavizados de vuelta al array de datos principal
+                data.set(newData);
             }
 
             tempCtx.putImageData(imageData, 0, 0);

@@ -216,10 +216,14 @@
 
                             <details class="sub-panel">
                                 <summary>Detección Automática</summary>
-                                <p class="help-text">Intenta encontrar los sprites basándose en el color de fondo (pixel superior izquierdo). Borrará los frames existentes.</p>
+                                <p class="help-text">Intenta encontrar los sprites basándose en el color de fondo. La tolerancia y el suavizado también se usan para la herramienta "Eliminar Fondo" (B).</p>
                                 <div class="input-group">
                                     <label for="auto-detect-tolerance">Tolerancia:</label>
                                     <input type="number" id="auto-detect-tolerance" value="20" min="0" max="255" title="Qué tan diferente debe ser un color del fondo para ser considerado parte de un sprite (0 = solo colores exactos).">
+                                </div>
+                                <div class="input-group">
+                                    <input type="checkbox" id="smooth-edges-checkbox" checked title="Aplica un anti-aliasing a los bordes al eliminar el fondo para reducir halos de color.">
+                                    <label for="smooth-edges-checkbox">Suavizar bordes</label>
                                 </div>
                                 <button id="auto-detect-button" disabled>Detectar Sprites (Auto)</button>
                             </details>

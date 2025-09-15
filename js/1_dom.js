@@ -60,6 +60,7 @@ export const DOM = {
     jsonLineNumbers: document.getElementById('json-line-numbers'),
     autoDetectButton: document.getElementById('auto-detect-button'),
     autoDetectToleranceInput: document.getElementById('auto-detect-tolerance'),
+    smoothEdgesCheckbox: document.getElementById('smooth-edges-checkbox'),
     exportScaleInput: document.getElementById('export-scale-input'),
     selectToolButton: document.getElementById('select-tool-button'),
     createFrameToolButton: document.getElementById('create-frame-tool-button'),
