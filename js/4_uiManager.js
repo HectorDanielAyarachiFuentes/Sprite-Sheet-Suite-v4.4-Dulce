@@ -54,7 +54,8 @@ const UIManager = (() => {
             // --- CORRECCIÓN --- Se rompe el bucle infinito aquí
             // Si hay frames pero no clips, crea uno directamente en el estado.
             if (AppState.clips.length === 0 && AppState.getFlattenedFrames().length > 0) {
-                const defaultClip = { id: Date.now(), name: "Default", frameIds: [] };
+                const allFrames = AppState.getFlattenedFrames();
+                const defaultClip = { id: Date.now(), name: "Animación Automática", frameIds: allFrames.map(f => f.id) };
                 AppState.clips.push(defaultClip);
                 AppState.activeClipId = defaultClip.id;
             }
