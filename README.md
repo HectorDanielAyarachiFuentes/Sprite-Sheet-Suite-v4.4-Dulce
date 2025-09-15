@@ -51,8 +51,15 @@ Dentro de la carpeta `img-md/` encontrarás varias hojas de sprites listas para 
 | ![Hombre caminando](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/hombre-caminando.png) | `hombre-caminando.png` |
 | ![Hombre con cuchillo](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/hombre-cuchillo.png) | `hombre-cuchillo.png` |
 | ![Megaman](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/megaman.png) | `megaman.png` |
-| ![Tortuga](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/tortuga.png) | `tortuga.png` |
-| ![Osama corre](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/osama-corre.png) | `osama-corre.png` |
+| ![Tortuga](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/tortuga.png) | `tortuga.png`
+
+img-md\gifs\tortuga.gif |
+| ![Osama corre](https://raw.githubusercontent.com/HectorDanielAyarachiFuentes/Herramienta-de-Corte-de-Sprite-Sheets/main/img-md/osama-corre.png) | `osama-corre.png` 
+
+
+img-md\gifs\osama.gif
+
+|
 ---
 
 ## 👨‍💻 Sobre el Autor
