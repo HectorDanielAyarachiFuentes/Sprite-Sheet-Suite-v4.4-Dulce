@@ -122,6 +122,19 @@
                 </button>
             </aside>
 
+            <!-- ===== NUEVO: POPUP DE OPCIONES PARA HERRAMIENTAS ===== -->
+            <div id="remove-bg-popup" class="tool-popup hidden">
+                <h4>Eliminar Fondo</h4>
+                <div class="input-group"><label for="remove-bg-tolerance">Tolerancia:</label><input type="number" id="remove-bg-tolerance" value="20" min="0" max="255" title="Qué tan diferente debe ser un color del fondo para ser considerado parte de un sprite (0 = solo colores exactos)."></div>
+                <div class="input-group"><label for="remove-bg-smooth-intensity">Suavizado:</label><select id="remove-bg-smooth-intensity" title="Intensidad del suavizado de bordes"><option value="none">Ninguno</option><option value="low">Bajo</option><option value="medium" selected>Medio</option><option value="high">Alto</option></select></div>
+                <div class="help-text-popup">
+                    <b>Bajo:</b> Un retoque sutil, ideal para imágenes con bordes ya bastante definidos.<br>
+                    <b>Medio:</b> El equilibrio perfecto, similar al efecto anterior.<br>
+                    <b>Alto:</b> Un suavizado más agresivo, perfecto para imágenes con mucho "halo" o bordes muy difuminados.
+                </div>
+                <button id="apply-remove-bg-button">Aplicar</button>
+            </div>
+
             <!-- Espacio de Trabajo Central (sin cambios) -->
             <main class="workspace">
                 <div class="document-window">
@@ -216,14 +229,10 @@
 
                             <details class="sub-panel">
                                 <summary>Detección Automática</summary>
-                                <p class="help-text">Intenta encontrar los sprites basándose en el color de fondo. La tolerancia y el suavizado también se usan para la herramienta "Eliminar Fondo" (B).</p>
+                                <p class="help-text">Intenta encontrar los sprites basándose en el color de fondo. Borrará los frames existentes.</p>
                                 <div class="input-group">
                                     <label for="auto-detect-tolerance">Tolerancia:</label>
                                     <input type="number" id="auto-detect-tolerance" value="20" min="0" max="255" title="Qué tan diferente debe ser un color del fondo para ser considerado parte de un sprite (0 = solo colores exactos).">
-                                </div>
-                                <div class="input-group">
-                                    <input type="checkbox" id="smooth-edges-checkbox" checked title="Aplica un anti-aliasing a los bordes al eliminar el fondo para reducir halos de color.">
-                                    <label for="smooth-edges-checkbox">Suavizar bordes</label>
                                 </div>
                                 <button id="auto-detect-button" disabled>Detectar Sprites (Auto)</button>
                             </details>

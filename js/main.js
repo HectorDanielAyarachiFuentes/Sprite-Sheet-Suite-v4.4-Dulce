@@ -142,6 +142,8 @@ export const App = {
         maxY: 0,
         rangeY: 0,
     },
+    // --- NUEVO: Estado para gestionar popups de herramientas ---
+    activeToolPopup: null,
 
     init() {
         console.log("Aplicación Sprite Sheet iniciada.");
@@ -245,7 +247,8 @@ export const App = {
         DOM.selectToolButton.addEventListener('click', () => this.setActiveTool('select'));
         DOM.createFrameToolButton.addEventListener('click', () => this.setActiveTool('create'));
         DOM.eraserToolButton.addEventListener('click', () => this.setActiveTool('eraser'));
-        DOM.removeBgToolButton.addEventListener('click', () => this.removeBackground());
+        DOM.removeBgToolButton.addEventListener('click', () => this.toggleRemoveBgPopup());
+        DOM.applyRemoveBgButton.addEventListener('click', () => this.removeBackground());
         DOM.trimSpritesheetButton.addEventListener('click', () => this.trimSpritesheet());
         // --- NUEVO: Inspector de Frames ---
         DOM.frameInspectorToolButton.addEventListener('click', () => this.openFrameInspector());
@@ -574,6 +577,29 @@ export const App = {
         CanvasView.drawAll();
     },
 
+    // --- NUEVO: Gestión de Popups de Herramientas ---
+    toggleRemoveBgPopup() {
+        const popup = DOM.removeBgPopup;
+        if (this.activeToolPopup === popup) {
+            this.hideActivePopup();
+        } else {
+            this.hideActivePopup(); // Ocultar cualquier otro popup abierto
+            const buttonRect = DOM.removeBgToolButton.getBoundingClientRect();
+            popup.style.top = `${buttonRect.top}px`;
+            popup.style.left = `${buttonRect.right + 10}px`;
+            popup.classList.remove('hidden');
+            this.activeToolPopup = popup;
+        }
+    },
+
+    hideActivePopup() {
+        if (this.activeToolPopup) {
+            this.activeToolPopup.classList.add('hidden');
+            this.activeToolPopup = null;
+        }
+    },
+    // --- FIN ---
+
     async removeBackground() {
         if (AppState.isLocked) { UIManager.showToast('Desbloquea los frames primero (L)', 'warning'); return; }
         if (!DOM.imageDisplay.src || DOM.imageDisplay.src.startsWith('http') || DOM.imageDisplay.naturalWidth === 0) {
@@ -585,6 +611,7 @@ export const App = {
             return;
         }
 
+        this.hideActivePopup(); // Ocultar el popup al aplicar
         UIManager.showLoader('Eliminando fondo...');
         
         // Use a timeout to allow the loader to show
@@ -604,9 +631,9 @@ export const App = {
             const imageData = tempCtx.getImageData(0, 0, w, h);
             const data = imageData.data;
 
+            const tolerance = parseInt(DOM.removeBgToleranceInput.value, 10);
+            const intensity = DOM.removeBgSmoothIntensitySelect.value;
             const bgColor = detectBackgroundColor(data, w, h);
-            const tolerance = parseInt(DOM.autoDetectToleranceInput.value, 10);
-            const shouldSmooth = DOM.smoothEdgesCheckbox.checked;
 
             for (let i = 0; i < data.length; i += 4) {
                 if (isBackgroundColor(data, i, bgColor, tolerance)) {
@@ -614,8 +641,25 @@ export const App = {
                 }
             }
 
-            // --- NUEVO: Suavizado de bordes opcional ---
-            if (shouldSmooth) {
+            // --- MODIFICADO: Suavizado de bordes opcional ---
+            if (intensity !== 'none') {
+                let colorBlendFactor, alphaFeatherFactor;
+
+                switch (intensity) {
+                    case 'low':
+                        colorBlendFactor = 0.3;  // Menos mezcla de color
+                        alphaFeatherFactor = 0.25; // Feathering más sutil
+                        break;
+                    case 'high':
+                        colorBlendFactor = 0.7;  // Más mezcla de color
+                        alphaFeatherFactor = 0.75; // Feathering más pronunciado
+                        break;
+                    case 'medium':
+                    default:
+                        colorBlendFactor = 0.5;  // Mezcla 50/50
+                        alphaFeatherFactor = 0.5;  // Equivalente a Math.sqrt()
+                }
+
                 const newData = new Uint8ClampedArray(data); // Trabajar sobre una copia para leer los datos originales
                 const alphaThreshold = 10; // Píxeles por debajo de este alfa se consideran fondo
 
@@ -652,16 +696,19 @@ export const App = {
 
                             // Si es un píxel de borde (tiene vecinos transparentes)
                             if (transparentNeighbors > 0) {
-                                // Suavizar color para mitigar el halo (si hay vecinos sólidos para promediar)
+                                // MEJORA: Suavizar color con factor de intensidad
                                 if (solidNeighborCount > 0) {
-                                    newData[i] = (data[i] + (avgR / solidNeighborCount)) / 2;
-                                    newData[i+1] = (data[i+1] + (avgG / solidNeighborCount)) / 2;
-                                    newData[i+2] = (data[i+2] + (avgB / solidNeighborCount)) / 2;
+                                    const neighborR = avgR / solidNeighborCount;
+                                    const neighborG = avgG / solidNeighborCount;
+                                    const neighborB = avgB / solidNeighborCount;
+                                    newData[i]   = data[i]   * (1 - colorBlendFactor) + neighborR * colorBlendFactor;
+                                    newData[i+1] = data[i+1] * (1 - colorBlendFactor) + neighborG * colorBlendFactor;
+                                    newData[i+2] = data[i+2] * (1 - colorBlendFactor) + neighborB * colorBlendFactor;
                                 }
                                 
-                                // Suavizar alfa (feathering)
+                                // MEJORA: Suavizar alfa (feathering) con factor de intensidad
                                 const solidRatio = solidNeighborCount / (solidNeighborCount + transparentNeighbors);
-                                newData[i + 3] = data[i + 3] * Math.sqrt(solidRatio);
+                                newData[i + 3] = data[i + 3] * Math.pow(solidRatio, alphaFeatherFactor);
                             }
                         }
                     }
